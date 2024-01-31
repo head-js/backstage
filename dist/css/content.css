@@ -1,0 +1,12 @@
+.HeadBackstageApp {
+  font-family: monospace;
+
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  /* left: 50%; */
+  width: 600px;
+  background-color: #fcfcfc;
+  /* background-image: url(../images/graphic.png); */
+}
