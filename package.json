@@ -3,9 +3,28 @@
   "version": "0.0.1",
   "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "rollup --config --strictDeprecations"
   },
   "author": "shuaizhexu@gmail.com",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "@babel/core": "7.18.13",
+    "@babel/eslint-parser": "7.18.9",
+    "@babel/plugin-transform-arrow-functions": "7.18.6",
+    "@babel/plugin-transform-block-scoping": "7.18.9",
+    "@babel/plugin-transform-destructuring": "7.18.13",
+    "@babel/plugin-transform-shorthand-properties": "7.18.6",
+    "@babel/preset-env": "7.18.10",
+    "@rollup/plugin-babel": "6.0.3",
+    "@rollup/plugin-commonjs": "23.0.7",
+    "@rollup/plugin-eslint": "9.0.4",
+    "@rollup/plugin-json": "5.0.2",
+    "@rollup/plugin-node-resolve": "15.0.2",
+    "eslint": "7.32.0",
+    "eslint-config-airbnb": "18.2.0",
+    "rollup": "3.12.1",
+    "vanilla.js": "0.2.11"
+  }
 }
