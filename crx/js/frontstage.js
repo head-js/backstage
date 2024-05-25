@@ -1,12 +1,18 @@
 (function () {
   'use strict';
 
-  function ignore(message, extra1) {
+  function ignore(message) {
+    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
     console.log('%c%s', 'color: #727272', message, extra1);
   }
   function debug(message) {
-    console.log('%c%s', 'background-color: #f0f9ff', message);
+    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+    let extra2 = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
+    let extra3 = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
+    console.log('%c%s', 'background-color: #f0f9ff', message, extra1, extra2, extra3);
   }
+
+  const SOURCE = '@head/backstage'; // eslint-disable-line import/prefer-default-export
 
   function seq() {
     return Date.now() + '-' + Math.random().toString(36).substring(2);
@@ -44,6 +50,7 @@
   function callBackstage(call) {
     return $callback(id => {
       const message = {
+        source: SOURCE,
         type: 'CALL',
         from: 'FRONTSTAGE',
         to: 'BACKSTAGE',
@@ -55,6 +62,7 @@
   }
   function callbackBackstage(callback, resolved, rejected) {
     const message = {
+      source: SOURCE,
       type: 'CALLBACK',
       from: 'FRONTSTAGE',
       to: 'BACKSTAGE',
@@ -70,7 +78,7 @@
     let {
       /* type, source, origin, */data
     } = _ref;
-    if (data.source === 'react-devtools-content-script') {
+    if (data.source !== SOURCE) {
       return false;
     }
     const {
@@ -81,10 +89,10 @@
       callback
     } = data;
     if (type === 'CALLBACK' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
-      debug('[FRONTSTAGE] window.addEventListner.message');
+      debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
       $callback(callback, call.resolved, call.rejected);
     } else if (type === 'CALL' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
-      debug('[FRONTSTAGE] window.addEventListner.message');
+      debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
       const resolved = {
         code: 0,
         message: 'call : backstage -> frontstage : ok'
@@ -92,7 +100,7 @@
       const rejected = null;
       callbackBackstage(callback, resolved, rejected);
     } else {
-      ignore('[FRONTSTAGE] window.addEventListner.message', data);
+      ignore('[FRONTSTAGE] window.addEventListener.message', data);
     }
   });
   const backstage = window.backstage || {};

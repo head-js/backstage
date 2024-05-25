@@ -1,12 +1,18 @@
 (function () {
   'use strict';
 
-  function ignore(message, extra1) {
+  function ignore(message) {
+    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
     console.log('%c%s', 'color: #727272', message, extra1);
   }
   function debug(message) {
-    console.log('%c%s', 'background-color: #f0f9ff', message);
+    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+    let extra2 = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
+    let extra3 = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
+    console.log('%c%s', 'background-color: #f0f9ff', message, extra1, extra2, extra3);
   }
+
+  const SOURCE = '@head/backstage'; // eslint-disable-line import/prefer-default-export
 
   function requirejs(src) {
     const s = document.createElement('script');
@@ -53,6 +59,7 @@
   function callFrontstage(call) {
     return $callback(id => {
       const message = {
+        source: SOURCE,
         type: 'CALL',
         from: 'BACKSTAGE',
         to: 'FRONTSTAGE',
@@ -64,6 +71,7 @@
   }
   function callbackFrontstage(callback, resolved, rejected) {
     const message = {
+      source: SOURCE,
       type: 'CALLBACK',
       from: 'BACKSTAGE',
       to: 'FRONTSTAGE',
@@ -96,7 +104,7 @@
     let {
       /* type, source, origin, */data
     } = _ref;
-    if (data.source === 'react-devtools-content-script') {
+    if (data.source !== SOURCE) {
       return false;
     }
     const {
@@ -107,14 +115,14 @@
       callback
     } = data;
     if (type === 'CALL' && from === 'FRONTSTAGE' && to === 'BACKSTAGE') {
-      debug('\t\t[BACKSTAGE] window.addEventListner.message');
+      debug('\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
       const {
         resolved,
         rejected
       } = await callBackground(call);
       callbackFrontstage(callback, resolved, rejected);
     } else if (type === 'CALLBACK' && from === 'FRONTSTAGE' && to === 'BACKSTAGE') {
-      debug('\t\t[BACKSTAGE] window.addEventListner.message');
+      debug('\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
       $callback(callback, call.resolved, call.rejected);
     } else {
       ignore('\t\t[BACKSTAGE] window.addEventListener.message', data);
@@ -128,8 +136,9 @@
       call
     } = message;
     if (type === 'CALL' && from === 'BACKGROUND' && to === 'BACKSTAGE') {
-      debug('\t\t[BACKSTAGE] chrome.runtime.onMessage');
+      debug('\t\t[BACKSTAGE] chrome.runtime.onMessage', from, to, type);
       callFrontstage(call).then((resolved, rejected) => {
+        debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
         respond(resolved, rejected);
       });
     } else {

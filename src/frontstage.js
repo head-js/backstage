@@ -1,4 +1,5 @@
 import * as logger from './utils/logger';
+import { SOURCE } from './utils/constants';
 import Callback from './utils/callback';
 
 
@@ -10,20 +11,20 @@ const $callback = new Callback();
 
 function callBackstage(call) {
   return $callback((id) => {
-    const message = { type: 'CALL', from: 'FRONTSTAGE', to: 'BACKSTAGE', call, callback: id };
+    const message = { source: SOURCE, type: 'CALL', from: 'FRONTSTAGE', to: 'BACKSTAGE', call, callback: id };
     window.postMessage(message);
   });
 }
 
 
 function callbackBackstage(callback, resolved, rejected) {
-  const message = { type: 'CALLBACK', from: 'FRONTSTAGE', to: 'BACKSTAGE', call: { resolved, rejected }, callback };
+  const message = { source: SOURCE, type: 'CALLBACK', from: 'FRONTSTAGE', to: 'BACKSTAGE', call: { resolved, rejected }, callback };
   window.postMessage(message);
 }
 
 
 window.addEventListener('message', ({ /* type, source, origin, */ data }) => {
-  if (data.source === 'react-devtools-content-script') {
+  if (data.source !== SOURCE) {
     return false;
   }
 

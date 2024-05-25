@@ -1,4 +1,5 @@
 import * as logger from './utils/logger';
+import { SOURCE } from './utils/constants';
 import requirejs from './utils/requirejs';
 import Callback from './utils/callback';
 
@@ -14,14 +15,14 @@ const $callback = new Callback();
 
 function callFrontstage(call) {
   return $callback((id) => {
-    const message = { type: 'CALL', from: 'BACKSTAGE', to: 'FRONTSTAGE', call, callback: id };
+    const message = { source: SOURCE, type: 'CALL', from: 'BACKSTAGE', to: 'FRONTSTAGE', call, callback: id };
     window.postMessage(message);
   });
 }
 
 
 function callbackFrontstage(callback, resolved, rejected) {
-  const message = { type: 'CALLBACK', from: 'BACKSTAGE', to: 'FRONTSTAGE', call: { resolved, rejected }, callback };
+  const message = { source: SOURCE, type: 'CALLBACK', from: 'BACKSTAGE', to: 'FRONTSTAGE', call: { resolved, rejected }, callback };
   window.postMessage(message);
 }
 
@@ -37,7 +38,7 @@ async function callBackground(call) {
 
 
 window.addEventListener('message', async ({ /* type, source, origin, */ data }) => {
-  if (data.source === 'react-devtools-content-script') {
+  if (data.source !== SOURCE) {
     return false;
   }
 
@@ -62,6 +63,7 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (type === 'CALL' && from === 'BACKGROUND' && to === 'BACKSTAGE') {
     logger.debug('\t\t[BACKSTAGE] chrome.runtime.onMessage', from, to, type);
     callFrontstage(call).then((resolved, rejected) => {
+      logger.debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
       respond(resolved, rejected);
     });
   } else {
