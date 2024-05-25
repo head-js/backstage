@@ -1,3 +1,4 @@
+import Application from '@head/edge';
 import * as logger from './utils/logger';
 import { SOURCE } from './utils/constants';
 import Callback from './utils/callback';
@@ -7,6 +8,15 @@ logger.debug('frontstage.js');
 
 
 const $callback = new Callback();
+
+
+const { router, client } = new Application();
+
+
+router.verb('GET', '/readiness', async (ctx, next) => {
+  ctx.body = { code: 0, message: 'ok' };
+  next();
+});
 
 
 function callBackstage(call) {
@@ -23,7 +33,7 @@ function callbackBackstage(callback, resolved, rejected) {
 }
 
 
-window.addEventListener('message', ({ /* type, source, origin, */ data }) => {
+window.addEventListener('message', async ({ /* type, source, origin, */ data }) => {
   if (data.source !== SOURCE) {
     return false;
   }
@@ -35,7 +45,8 @@ window.addEventListener('message', ({ /* type, source, origin, */ data }) => {
     $callback(callback, call.resolved, call.rejected);
   } else if (type === 'CALL' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
     logger.debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
-    const resolved = { code: 0, message: 'call : backstage -> frontstage : ok' };
+    // const resolved = { code: 0, message: 'call : backstage -> frontstage : ok' };
+    const resolved = await client.verb(call.method, call.ep, call.search, call.form);
     const rejected = null;
 
     callbackBackstage(callback, resolved, rejected);
@@ -53,3 +64,9 @@ backstage.invoke = function invoke(svc, method, ep, search = {}, form = {}) {
   const call = { svc, method, ep, search, form };
   return callBackstage(call);
 };
+
+
+backstage.route = router.verb.bind(router);
+
+
+backstage.verb = client.verb.bind(client);
