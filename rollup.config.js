@@ -10,6 +10,7 @@ export default [
     input: 'src/frontstage.js',
 
     external: [
+      'core-js/modules/es.promise.js',
     ],
 
     plugins: [
@@ -39,6 +40,7 @@ export default [
     input: 'src/backstage.js',
 
     external: [
+      'core-js/modules/es.promise.js',
     ],
 
     plugins: [
@@ -68,6 +70,7 @@ export default [
     input: 'src/background.js',
 
     external: [
+      'core-js/modules/es.promise.js',
     ],
 
     plugins: [
