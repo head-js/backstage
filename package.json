@@ -10,7 +10,7 @@
   "author": "shuaizhexu@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "@head/edge": "0.2.1"
+    "@head/edge": "0.3.0"
   },
   "devDependencies": {
     "@babel/core": "7.18.13",

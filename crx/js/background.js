@@ -12,10 +12,10 @@
     console.log('%c%s', 'background-color: #f0f9ff', message, extra1, extra2, extra3);
   }
 
-  debug('background.js');
+  // logger.debug('background.js');
+
   function callBackstage(call) {
     return new Promise((resolve, reject) => {
-      // eslint-disable-line no-unused-vars
       chrome.tabs.query({
         url: call.svc
       }, tabs => {
@@ -26,11 +26,16 @@
             to: 'BACKSTAGE',
             call
           };
-          chrome.tabs.sendMessage(tabs[0].id, message, (resolved, rejected) => {
-            resolve({
+          chrome.tabs.sendMessage(tabs[0].id, message, _ref => {
+            let {
               resolved,
               rejected
-            });
+            } = _ref;
+            if (rejected) {
+              reject(rejected);
+            } else {
+              resolve(resolved);
+            }
           });
         }
       });
@@ -45,13 +50,18 @@
     } = message;
     if (type === 'CALL' && from === 'BACKSTAGE' && to === 'BACKGROUND') {
       debug('\t\t\t\t[BACKGOURD] chrome.runtime.onMessage', from, to, type);
-      callBackstage(call).then(_ref => {
-        let {
-          resolved,
-          rejected
-        } = _ref;
+      callBackstage(call).then(resolved => {
         debug('\t\t\t\t[BACKGOURD] chrome.runtime.onMessage.respond');
-        respond(resolved, rejected);
+        respond({
+          resolved,
+          rejected: null
+        });
+      }).catch(rejected => {
+        debug('\t\t\t\t[BACKGOURD] chrome.runtime.onMessage.respond');
+        respond({
+          resolved: null,
+          rejected
+        });
       });
     } else {
       ignore('\t\t\t\t[BACKGROUND] chrome.runtime.onMessage', message);

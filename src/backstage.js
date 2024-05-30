@@ -4,7 +4,7 @@ import requirejs from './utils/requirejs';
 import Callback from './utils/callback';
 
 
-logger.debug('backstage.js');
+// logger.debug('backstage.js');
 
 
 requirejs('js/frontstage.js');
@@ -29,9 +29,13 @@ function callbackFrontstage(callback, resolved, rejected) {
 
 async function callBackground(call) {
   const message = { type: 'CALL', from: 'BACKSTAGE', to: 'BACKGROUND', call };
-  return new Promise((resolve, reject) => { // eslint-disable-line no-unused-vars
-    chrome.runtime.sendMessage(message, (resolved, rejected) => {
-      resolve({ resolved, rejected });
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, ({ resolved, rejected }) => {
+      if (rejected) {
+        reject(rejected);
+      } else {
+        resolve(resolved);
+      }
     });
   });
 }
@@ -46,8 +50,12 @@ window.addEventListener('message', async ({ /* type, source, origin, */ data }) 
 
   if (type === 'CALL' && from === 'FRONTSTAGE' && to === 'BACKSTAGE') {
     logger.debug('\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
-    const { resolved, rejected } = await callBackground(call);
-    callbackFrontstage(callback, resolved, rejected);
+    try {
+      const resolved = await callBackground(call);
+      callbackFrontstage(callback, resolved, null);
+    } catch (rejected) {
+      callbackFrontstage(callback, null, rejected);
+    }
   } else if (type === 'CALLBACK' && from === 'FRONTSTAGE' && to === 'BACKSTAGE') {
     logger.debug('\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
     $callback(callback, call.resolved, call.rejected);
@@ -62,10 +70,15 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 
   if (type === 'CALL' && from === 'BACKGROUND' && to === 'BACKSTAGE') {
     logger.debug('\t\t[BACKSTAGE] chrome.runtime.onMessage', from, to, type);
-    callFrontstage(call).then((resolved, rejected) => {
-      logger.debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
-      respond(resolved, rejected);
-    });
+    callFrontstage(call)
+      .then((resolved) => {
+        logger.debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
+        respond({ resolved, rejected: null });
+      })
+      .catch((rejected) => {
+        logger.debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
+        respond({ resolved: null, rejected });
+      });
   } else {
     logger.ignore('\t\t[BACKSTAGE] chrome.runtime.onMessage', message);
   }

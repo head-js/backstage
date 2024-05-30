@@ -1,12 +1,98 @@
 (function () {
   'use strict';
 
+  // require('core-js/modules/es.array.iterator.js');
+  // require('core-js/modules/es.object.to-string.js');
+  // require('core-js/modules/web.dom-collections.iterator.js');
+  // require('core-js/modules/es.object.create.js');
+  // require('core-js/modules/es.date.to-string.js');
+  // require('core-js/modules/es.regexp.to-string.js');
+  // require('core-js/modules/es.regexp.exec.js');
+  // require('core-js/modules/es.string.replace.js');
+  // require('core-js/modules/es.array.reduce.js');
+  // require('core-js/modules/es.array.concat.js');
+  // require('core-js/modules/es.array.is-array.js');
+  // require('core-js/modules/es.string.iterator.js');
+  // require('core-js/modules/es.promise.js');
+  // require('core-js/modules/es.function.bind.js');
+  // require('core-js/modules/es.object.define-property.js');
+  // require('core-js/modules/es.array.for-each.js');
+  // require('core-js/modules/web.dom-collections.for-each.js');
+  // require('core-js/modules/es.object.keys.js');
+  // require('core-js/modules/es.object.get-own-property-descriptor.js');
+  // require('core-js/modules/es.array.index-of.js');
+  // require('core-js/modules/es.array.map.js');
+  // require('core-js/modules/es.regexp.constructor.js');
+  // require('core-js/modules/es.function.name.js');
+  // require('core-js/modules/es.string.split.js');
+  // require('core-js/modules/es.array.join.js');
+  // require('core-js/modules/es.string.ends-with.js');
+  // require('core-js/modules/es.object.freeze.js');
+  // require('core-js/modules/es.symbol.js');
+  // require('core-js/modules/es.symbol.description.js');
+  // require('core-js/modules/es.symbol.iterator.js');
+  // require('core-js/modules/es.string.match.js');
+  // require('core-js/modules/es.array.slice.js');
+  // require('core-js/modules/es.array.some.js');
+  // require('core-js/modules/es.array.splice.js');
+
+  function _classCallCheck(a, n) {
+    if (!(a instanceof n)) throw new TypeError("Cannot call a class as a function");
+  }
+  function _defineProperties(e, r) {
+    for (var t = 0; t < r.length; t++) {
+      var o = r[t];
+      o.enumerable = o.enumerable || !1, o.configurable = !0, "value" in o && (o.writable = !0), Object.defineProperty(e, _toPropertyKey(o.key), o);
+    }
+  }
+  function _createClass(e, r, t) {
+    return r && _defineProperties(e.prototype, r), t && _defineProperties(e, t), Object.defineProperty(e, "prototype", {
+      writable: !1
+    }), e;
+  }
+  function _toPrimitive(t, r) {
+    if ("object" != typeof t || !t) return t;
+    var e = t[Symbol.toPrimitive];
+    if (void 0 !== e) {
+      var i = e.call(t, r || "default");
+      if ("object" != typeof i) return i;
+      throw new TypeError("@@toPrimitive must return a primitive value.");
+    }
+    return ("string" === r ? String : Number)(t);
+  }
+  function _toPropertyKey(t) {
+    var i = _toPrimitive(t, "string");
+    return "symbol" == typeof i ? i : i + "";
+  }
+  function _typeof$1(o) {
+    "@babel/helpers - typeof";
+
+    return _typeof$1 = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+      return typeof o;
+    } : function (o) {
+      return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+    }, _typeof$1(o);
+  }
+
+  // require('core-js/modules/es.array.reduce.js');
+  // require('core-js/modules/es.object.to-string.js');
+  // require('core-js/modules/es.array.concat.js');
+  // require('core-js/modules/es.array.is-array.js');
+  // require('core-js/modules/es.string.iterator.js');
+  // require('core-js/modules/es.array.iterator.js');
+  // require('core-js/modules/web.dom-collections.iterator.js');
+  // require('core-js/modules/es.promise.js');
+  // require('core-js/modules/es.function.bind.js');
+
   /**
    * Expose compositor.
    */
-  var src = compose;
-  function flatten(arr) {
-    return arr.reduce((acc, next) => acc.concat(Array.isArray(next) ? flatten(next) : next), []);
+
+  var src$1 = compose$3;
+  function flatten$1(arr) {
+    return arr.reduce(function (acc, next) {
+      return acc.concat(Array.isArray(next) ? flatten$1(next) : next);
+    }, []);
   }
 
   /**
@@ -19,10 +105,10 @@
    * @api public
    */
 
-  function compose(middleware) {
+  function compose$3(middleware) {
     if (!Array.isArray(middleware)) throw new TypeError('Middleware stack must be an array!');
-    middleware = flatten(middleware);
-    for (const fn of middleware) {
+    middleware = flatten$1(middleware);
+    for (var fn of middleware) {
       if (typeof fn !== 'function') throw new TypeError('Middleware must be composed of functions!');
     }
 
@@ -34,12 +120,12 @@
 
     return function (context, next) {
       // last called middleware #
-      let index = -1;
+      var index = -1;
       return dispatch(0);
       function dispatch(i) {
         if (i <= index) return Promise.reject(new Error('next() called multiple times'));
         index = i;
-        let fn = middleware[i];
+        var fn = middleware[i];
         if (i === middleware.length) fn = next;
         if (!fn) return Promise.resolve();
         try {
@@ -50,11 +136,13 @@
       }
     };
   }
-  var compose_1 = src;
+  var compose_1$1 = src$1;
 
-  function createCommonjsModule(fn, module) {
-  	return module = { exports: {} }, fn(module, module.exports), module.exports;
-  }
+  var contextExports = {};
+  var context$1 = {
+    get exports(){ return contextExports; },
+    set exports(v){ contextExports = v; },
+  };
 
   /**
    * Expose `Delegator`.
@@ -177,258 +265,235 @@
     return this;
   };
 
-  var context = createCommonjsModule(function (module) {
+  /**
+   * Module dependencies.
+   */
 
+  // const util = require('util');
+  // const createError = require('http-errors');
+  // const httpAssert = require('http-assert');
+  var delegate = delegates;
+  // const statuses = require('statuses');
+  // const Cookies = require('cookies');
+
+  // const COOKIES = Symbol('context#cookies');
+
+  /**
+   * Context prototype.
+   */
+
+  var proto = context$1.exports = {
     /**
-     * Module dependencies.
-     */
-
-    // const util = require('util');
-    // const createError = require('http-errors');
-    // const httpAssert = require('http-assert');
-
-    // const statuses = require('statuses');
-    // const Cookies = require('cookies');
-
-    // const COOKIES = Symbol('context#cookies');
-
-    /**
-     * Context prototype.
-     */
-    const proto = module.exports = {
-      /**
-       * util.inspect() implementation, which
-       * just returns the JSON output.
-       *
-       * @return {Object}
-       * @api public
-       */
-
-      // inspect() {
-      //   if (this === proto) return this;
-      //   return this.toJSON();
-      // },
-
-      /**
-       * Return JSON representation.
-       *
-       * Here we explicitly invoke .toJSON() on each
-       * object, as iteration will otherwise fail due
-       * to the getters and cause utilities such as
-       * clone() to fail.
-       *
-       * @return {Object}
-       * @api public
-       */
-
-      // toJSON() {
-      //   return {
-      //     request: this.request.toJSON(),
-      //     response: this.response.toJSON(),
-      //     app: this.app.toJSON(),
-      //     originalUrl: this.originalUrl,
-      //     req: '<original node req>',
-      //     res: '<original node res>',
-      //     socket: '<original node socket>'
-      //   };
-      // },
-
-      /**
-       * Similar to .throw(), adds assertion.
-       *
-       *    this.assert(this.user, 401, 'Please login!');
-       *
-       * See: https://github.com/jshttp/http-assert
-       *
-       * @param {Mixed} test
-       * @param {Number} status
-       * @param {String} message
-       * @api public
-       */
-
-      // assert: httpAssert,
-
-      /**
-       * Throw an error with `status` (default 500) and
-       * `msg`. Note that these are user-level
-       * errors, and the message may be exposed to the client.
-       *
-       *    this.throw(403)
-       *    this.throw(400, 'name required')
-       *    this.throw('something exploded')
-       *    this.throw(new Error('invalid'))
-       *    this.throw(400, new Error('invalid'))
-       *
-       * See: https://github.com/jshttp/http-errors
-       *
-       * Note: `status` should only be passed as the first parameter.
-       *
-       * @param {String|Number|Error} err, msg or status
-       * @param {String|Number|Error} [err, msg or status]
-       * @param {Object} [props]
-       * @api public
-       */
-
-      throw(status, message, extra) {
-        // throw createError(...args);
-        const err = new Error(message || status); // TODO: || statuses[status].message
-        err.status = status;
-        // TODO: extends(err, extra);
-        throw err;
-      },
-      /**
-       * Default error handling.
-       *
-       * @param {Error} err
-       * @api private
-       */
-
-      onerror(err) {
-        // don't do anything if there is no error.
-        // this allows you to pass `this.onerror`
-        // to node-style callbacks.
-        if (null == err) return;
-
-        // When dealing with cross-globals a normal `instanceof` check doesn't work properly.
-        // See https://github.com/koajs/koa/issues/1466
-        // We can probably remove it once jest fixes https://github.com/facebook/jest/issues/2549.
-        const isNativeError = Object.prototype.toString.call(err) === '[object Error]' || err instanceof Error;
-        if (!isNativeError) err = new Error(`non-error thrown: ${err}`);
-        throw err;
-
-        // let headerSent = false;
-        // if (this.headerSent || !this.writable) {
-        //   headerSent = err.headerSent = true;
-        // }
-
-        // delegate
-        // this.app.emit('error', err, this);
-
-        // nothing we can do here other
-        // than delegate to the app-level
-        // handler and log.
-        // if (headerSent) {
-        //   return;
-        // }
-
-        // const { res } = this;
-
-        // first unset all headers
-        /* istanbul ignore else */
-        // if (typeof res.getHeaderNames === 'function') {
-        //   res.getHeaderNames().forEach(name => res.removeHeader(name));
-        // } else {
-        //   res._headers = {}; // Node < 7.7
-        // }
-
-        // then set those specified
-        // this.set(err.headers);
-
-        // force text/plain
-        // this.type = 'text';
-
-        // let statusCode = err.status || err.statusCode;
-
-        // ENOENT support
-        // if ('ENOENT' === err.code) statusCode = 404;
-
-        // default to 500
-        // if ('number' !== typeof statusCode || !statuses[statusCode]) statusCode = 500;
-
-        // respond
-        // const code = statuses[statusCode];
-        // const msg = err.expose ? err.message : code;
-        // this.status = err.status = statusCode;
-        // this.length = Buffer.byteLength(msg);
-        // res.end(msg);
-      }
-
-      // get cookies() {
-      //   if (!this[COOKIES]) {
-      //     this[COOKIES] = new Cookies(this.req, this.res, {
-      //       keys: this.app.keys,
-      //       secure: this.request.secure
-      //     });
-      //   }
-      //   return this[COOKIES];
-      // },
-
-      // set cookies(_cookies) {
-      //   this[COOKIES] = _cookies;
-      // }
-    };
-
-    /**
-     * Custom inspection implementation for newer Node.js versions.
+     * util.inspect() implementation, which
+     * just returns the JSON output.
      *
      * @return {Object}
      * @api public
      */
+    // inspect() {
+    //   if (this === proto) return this;
+    //   return this.toJSON();
+    // },
+    /**
+     * Return JSON representation.
+     *
+     * Here we explicitly invoke .toJSON() on each
+     * object, as iteration will otherwise fail due
+     * to the getters and cause utilities such as
+     * clone() to fail.
+     *
+     * @return {Object}
+     * @api public
+     */
+    // toJSON() {
+    //   return {
+    //     request: this.request.toJSON(),
+    //     response: this.response.toJSON(),
+    //     app: this.app.toJSON(),
+    //     originalUrl: this.originalUrl,
+    //     req: '<original node req>',
+    //     res: '<original node res>',
+    //     socket: '<original node socket>'
+    //   };
+    // },
+    /**
+     * Similar to .throw(), adds assertion.
+     *
+     *    this.assert(this.user, 401, 'Please login!');
+     *
+     * See: https://github.com/jshttp/http-assert
+     *
+     * @param {Mixed} test
+     * @param {Number} status
+     * @param {String} message
+     * @api public
+     */
+    // assert: httpAssert,
+    /**
+     * Throw an error with `status` (default 500) and
+     * `msg`. Note that these are user-level
+     * errors, and the message may be exposed to the client.
+     *
+     *    this.throw(403)
+     *    this.throw(400, 'name required')
+     *    this.throw('something exploded')
+     *    this.throw(new Error('invalid'))
+     *    this.throw(400, new Error('invalid'))
+     *
+     * See: https://github.com/jshttp/http-errors
+     *
+     * Note: `status` should only be passed as the first parameter.
+     *
+     * @param {String|Number|Error} err, msg or status
+     * @param {String|Number|Error} [err, msg or status]
+     * @param {Object} [props]
+     * @api public
+     */
+    "throw": function _throw(status, message, extra) {
+      // throw createError(...args);
+      var err = new Error(message || status); // TODO: || statuses[status].message
+      err.status = status;
+      // TODO: extends(err, extra);
+      throw err;
+    },
+    /**
+     * Default error handling.
+     *
+     * @param {Error} err
+     * @api private
+     */
+    onerror: function onerror(err) {
+      // don't do anything if there is no error.
+      // this allows you to pass `this.onerror`
+      // to node-style callbacks.
+      if (null == err) return;
 
-    /* istanbul ignore else */
-    // if (util.inspect.custom) {
-    //   module.exports[util.inspect.custom] = module.exports.inspect;
+      // When dealing with cross-globals a normal `instanceof` check doesn't work properly.
+      // See https://github.com/koajs/koa/issues/1466
+      // We can probably remove it once jest fixes https://github.com/facebook/jest/issues/2549.
+      var isNativeError = Object.prototype.toString.call(err) === '[object Error]' || err instanceof Error;
+      // if (!isNativeError) err = new Error(util.format('non-error thrown: %j', err));
+      if (!isNativeError) {
+        if (err.status || err.code) ; else {
+          err = new Error('non-error thrown: ' + err.toString());
+        }
+      }
+      throw err;
+
+      // let headerSent = false;
+      // if (this.headerSent || !this.writable) {
+      //   headerSent = err.headerSent = true;
+      // }
+
+      // // delegate
+      // this.app.emit('error', err, this);
+
+      // // nothing we can do here other
+      // // than delegate to the app-level
+      // // handler and log.
+      // if (headerSent) {
+      //   return;
+      // }
+
+      // const { res } = this;
+
+      // // first unset all headers
+      // /* istanbul ignore else */
+      // if (typeof res.getHeaderNames === 'function') {
+      //   res.getHeaderNames().forEach(name => res.removeHeader(name));
+      // } else {
+      //   res._headers = {}; // Node < 7.7
+      // }
+
+      // // then set those specified
+      // this.set(err.headers);
+
+      // // force text/plain
+      // this.type = 'text';
+
+      // let statusCode = err.status || err.statusCode;
+
+      // // ENOENT support
+      // if ('ENOENT' === err.code) statusCode = 404;
+
+      // // default to 500
+      // // if ('number' !== typeof statusCode || !statuses[statusCode]) statusCode = 500;
+      // if ('number' !== typeof statusCode) statusCode = 500;
+
+      // // respond
+      // // const code = statuses[statusCode];
+      // const code = statusCode;
+      // const msg = err.expose ? err.message : code;
+      // this.status = err.status = statusCode;
+      // this.length = Buffer.byteLength(msg);
+      // res.end(msg);
+    } // get cookies() {
+    //   if (!this[COOKIES]) {
+    //     this[COOKIES] = new Cookies(this.req, this.res, {
+    //       keys: this.app.keys,
+    //       secure: this.request.secure
+    //     });
+    //   }
+    //   return this[COOKIES];
+    // },
+    // set cookies(_cookies) {
+    //   this[COOKIES] = _cookies;
     // }
+  };
 
-    /**
-     * Response delegation.
-     */
+  /**
+   * Custom inspection implementation for newer Node.js versions.
+   *
+   * @return {Object}
+   * @api public
+   */
 
-    delegates(proto, 'response')
-    //   .method('attachment')
-    //   .method('redirect')
-    //   .method('remove')
-    //   .method('vary')
-    //   .method('has')
-    //   .method('set')
-    //   .method('append')
-    //   .method('flushHeaders')
-    //   .access('status')
-    //   .access('message')
-    //   .access('body')
-    //   .access('length')
-    //   .access('type')
-    //   .access('lastModified')
-    //   .access('etag')
-    //   .getter('headerSent')
-    .getter('writable');
+  /* istanbul ignore else */
+  // if (util.inspect.custom) {
+  //   module.exports[util.inspect.custom] = module.exports.inspect;
+  // }
 
-    /**
-     * Request delegation.
-     */
+  /**
+   * Response delegation.
+   */
 
-    delegates(proto, 'request')
-    //   .method('acceptsLanguages')
-    //   .method('acceptsEncodings')
-    //   .method('acceptsCharsets')
-    //   .method('accepts')
-    //   .method('get')
-    //   .method('is')
-    //   .access('querystring')
-    //   .access('idempotent')
-    //   .access('socket')
-    //   .access('search')
-    .access('method')
-    //   .access('query')
-    .access('path');
-    //   .access('url')
-    //   .access('accept')
-    //   .getter('origin')
-    //   .getter('href')
-    //   .getter('subdomains')
-    //   .getter('protocol')
-    //   .getter('host')
-    //   .getter('hostname')
-    //   .getter('URL')
-    //   .getter('header')
-    //   .getter('headers')
-    //   .getter('secure')
-    //   .getter('stale')
-    //   .getter('fresh')
-    //   .getter('ips')
-    //   .getter('ip');
-  });
-  // var context_1 = context.onerror;
+  delegate(proto, 'response')
+  // .method('attachment')
+  // .method('redirect')
+  // .method('remove')
+  // .method('vary')
+  // .method('has')
+  // .method('set')
+  // .method('append')
+  // .method('flushHeaders')
+  // .access('status')
+  // .access('message')
+  // .access('body')
+  // .access('length')
+  // .access('type')
+  // .access('lastModified')
+  // .access('etag')
+  // .getter('headerSent')
+  .getter('writable');
+
+  /**
+   * Request delegation.
+   */
+
+  delegate(proto, 'request')
+  // .method('acceptsLanguages')
+  // .method('acceptsEncodings')
+  // .method('acceptsCharsets')
+  // .method('accepts')
+  // .method('get')
+  // .method('is')
+  // .access('querystring')
+  // .access('idempotent')
+  // .access('socket')
+  // .access('search')
+  .access('method')
+  // .access('query')
+  .access('path');
 
   /**
    * Module dependencies.
@@ -451,7 +516,8 @@
   /**
    * Prototype.
    */
-  var request = {
+
+  var request$1 = {
     /**
      * Return request header.
      *
@@ -1149,10 +1215,6 @@
     //   ]);
     // }
   };
-  // var request_1 = request.method;
-  // var request_2 = request.path;
-  // var request_3 = request.query;
-  // var request_4 = request.body;
 
   /**
    * Module dependencies.
@@ -1176,7 +1238,8 @@
   /**
    * Prototype.
    */
-  var response = {
+
+  var response$1 = {
     /**
      * Return the request socket.
      *
@@ -1727,41 +1790,111 @@
     // }
   };
 
-  function Client(opts) {
+  function Client$1(opts) {
     this.handleRequest = opts.handleRequest;
   }
-  Client.prototype.verb = function (method, pathname, query, form, headers) {
+  Client$1.prototype.verb = function (method, pathname, search, form, headers) {
     // console.log(method, pathname, params, form, headers);
-    const req = {
-      method,
-      pathname,
-      query: query || {},
+    var req = {
+      method: method,
+      pathname: pathname,
+      query: search || {},
       body: form || {},
       headers: headers || {}
     };
-    const res = {
-      end: resp => Promise.resolve(resp)
+    var res = {
+      end: function end(resp) {
+        return Promise.resolve(resp);
+      }
     };
     return this.handleRequest(req, res);
   };
-  Client.prototype.get = function (pathname, query, form, headers) {
-    return this.verb('GET', pathname, query, form, headers);
+  Client$1.prototype.get = function (pathname, search, form, headers) {
+    return this.verb('GET', pathname, search, form, headers);
   };
-  Client.prototype.post = function (pathname, query, form, headers) {
-    return this.verb('POST', pathname, query, form, headers);
+  Client$1.prototype.post = function (pathname, search, form, headers) {
+    return this.verb('POST', pathname, search, form, headers);
   };
-  Client.prototype.put = function (pathname, query, form, headers) {
-    return this.verb('PUT', pathname, query, form, headers);
+  Client$1.prototype.put = function (pathname, search, form, headers) {
+    return this.verb('PUT', pathname, search, form, headers);
   };
-  Client.prototype.del = function (pathname, query, form, headers) {
-    return this.verb('DELETE', pathname, query, form, headers);
+  Client$1.prototype.del = function (pathname, search, form, headers) {
+    return this.verb('DELETE', pathname, search, form, headers);
   };
-  var client$1 = Client;
+  var client$1 = Client$1;
+
+  // require('core-js/modules/es.string.iterator.js');
+  // require('core-js/modules/es.array.iterator.js');
+  // require('core-js/modules/web.dom-collections.iterator.js');
+  // require('core-js/modules/es.regexp.exec.js');
+  // require('core-js/modules/es.string.match.js');
+  // require('core-js/modules/es.function.name.js');
+  // require('core-js/modules/es.array.reduce.js');
+  // require('core-js/modules/es.object.to-string.js');
+  // require('core-js/modules/es.array.concat.js');
+  // require('core-js/modules/es.array.is-array.js');
+  // require('core-js/modules/es.object.keys.js');
+  // require('core-js/modules/es.array.index-of.js');
+  // require('core-js/modules/es.regexp.constructor.js');
+  // require('core-js/modules/es.regexp.to-string.js');
+  // require('core-js/modules/es.array.slice.js');
+  // require('core-js/modules/es.promise.js');
+  // require('core-js/modules/es.function.bind.js');
+  // require('core-js/modules/es.date.to-string.js');
+  // require('core-js/modules/es.array.map.js');
+  // require('core-js/modules/es.array.some.js');
+  // require('core-js/modules/es.array.splice.js');
+
+  function getAugmentedNamespace(n) {
+    if (n.__esModule) return n;
+    var f = n["default"];
+    if (typeof f == "function") {
+      var a = function a() {
+        if (this instanceof a) {
+          var args = [null];
+          args.push.apply(args, arguments);
+          var Ctor = Function.bind.apply(f, args);
+          return new Ctor();
+        }
+        return f.apply(this, arguments);
+      };
+      a.prototype = f.prototype;
+    } else a = {};
+    Object.defineProperty(a, '__esModule', {
+      value: true
+    });
+    Object.keys(n).forEach(function (k) {
+      var d = Object.getOwnPropertyDescriptor(n, k);
+      Object.defineProperty(a, k, d.get ? d : {
+        enumerable: true,
+        get: function get() {
+          return n[k];
+        }
+      });
+    });
+    return a;
+  }
+
+  // require('core-js/modules/es.array.reduce.js');
+  // require('core-js/modules/es.object.to-string.js');
+  // require('core-js/modules/es.array.concat.js');
+  // require('core-js/modules/es.array.is-array.js');
+  // require('core-js/modules/es.string.iterator.js');
+  // require('core-js/modules/es.array.iterator.js');
+  // require('core-js/modules/web.dom-collections.iterator.js');
+  // require('core-js/modules/es.promise.js');
+  // require('core-js/modules/es.function.bind.js');
 
   /**
    * Expose compositor.
    */
-  var src$1 = compose$1;
+
+  var src = compose$1;
+  function flatten(arr) {
+    return arr.reduce(function (acc, next) {
+      return acc.concat(Array.isArray(next) ? flatten(next) : next);
+    }, []);
+  }
 
   /**
    * Compose `middleware` returning
@@ -1775,7 +1908,8 @@
 
   function compose$1(middleware) {
     if (!Array.isArray(middleware)) throw new TypeError('Middleware stack must be an array!');
-    for (const fn of middleware) {
+    middleware = flatten(middleware);
+    for (var fn of middleware) {
       if (typeof fn !== 'function') throw new TypeError('Middleware must be composed of functions!');
     }
 
@@ -1787,12 +1921,12 @@
 
     return function (context, next) {
       // last called middleware #
-      let index = -1;
+      var index = -1;
       return dispatch(0);
       function dispatch(i) {
         if (i <= index) return Promise.reject(new Error('next() called multiple times'));
         index = i;
-        let fn = middleware[i];
+        var fn = middleware[i];
         if (i === middleware.length) fn = next;
         if (!fn) return Promise.resolve();
         try {
@@ -1803,11 +1937,11 @@
       }
     };
   }
-  var compose_1$1 = src$1;
+  var compose_1 = src;
 
   // https://github.com/jshttp/methods
 
-  var methods = ['ACL', 'BIND', 'CHECKOUT', 'CONNECT', 'COPY', 'DELETE', 'GET', 'HEAD', 'LINK', 'LOCK', 'M-SEARCH', 'MERGE', 'MKACTIVITY', 'MKCALENDAR', 'MKCOL', 'MOVE', 'NOTIFY', 'OPTIONS', 'PATCH', 'POST', 'PRI', 'PROPFIND', 'PROPPATCH', 'PURGE', 'PUT', 'REBIND', 'REPORT', 'SEARCH', 'SOURCE', 'SUBSCRIBE', 'TRACE', 'UNBIND', 'UNLINK', 'UNLOCK', 'UNSUBSCRIBE'];
+  var methods$1 = ['ACL', 'BIND', 'CHECKOUT', 'CONNECT', 'COPY', 'DELETE', 'GET', 'HEAD', 'LINK', 'LOCK', 'M-SEARCH', 'MERGE', 'MKACTIVITY', 'MKCALENDAR', 'MKCOL', 'MOVE', 'NOTIFY', 'OPTIONS', 'PATCH', 'POST', 'PRI', 'PROPFIND', 'PROPPATCH', 'PURGE', 'PUT', 'REBIND', 'REPORT', 'SEARCH', 'SOURCE', 'SUBSCRIBE', 'TRACE', 'UNBIND', 'UNLINK', 'UNLOCK', 'UNSUBSCRIBE'];
 
   /**
    * Tokenize input string.
@@ -1816,8 +1950,8 @@
     var tokens = [];
     var i = 0;
     while (i < str.length) {
-      var char = str[i];
-      if (char === "*" || char === "+" || char === "?") {
+      var _char = str[i];
+      if (_char === "*" || _char === "+" || _char === "?") {
         tokens.push({
           type: "MODIFIER",
           index: i,
@@ -1825,7 +1959,7 @@
         });
         continue;
       }
-      if (char === "\\") {
+      if (_char === "\\") {
         tokens.push({
           type: "ESCAPED_CHAR",
           index: i++,
@@ -1833,7 +1967,7 @@
         });
         continue;
       }
-      if (char === "{") {
+      if (_char === "{") {
         tokens.push({
           type: "OPEN",
           index: i,
@@ -1841,7 +1975,7 @@
         });
         continue;
       }
-      if (char === "}") {
+      if (_char === "}") {
         tokens.push({
           type: "CLOSE",
           index: i,
@@ -1849,7 +1983,7 @@
         });
         continue;
       }
-      if (char === ":") {
+      if (_char === ":") {
         var name = "";
         var j = i + 1;
         while (j < str.length) {
@@ -1877,7 +2011,7 @@
         i = j;
         continue;
       }
-      if (char === "(") {
+      if (_char === "(") {
         var count = 1;
         var pattern = "";
         var j = i + 1;
@@ -1941,10 +2075,10 @@
     var key = 0;
     var i = 0;
     var path = "";
-    var tryConsume = function (type) {
+    var tryConsume = function tryConsume(type) {
       if (i < tokens.length && tokens[i].type === type) return tokens[i++].value;
     };
-    var mustConsume = function (type) {
+    var mustConsume = function mustConsume(type) {
       var value = tryConsume(type);
       if (value !== undefined) return value;
       var _a = tokens[i],
@@ -1952,7 +2086,7 @@
         index = _a.index;
       throw new TypeError("Unexpected ".concat(nextType, " at ").concat(index, ", expected ").concat(type));
     };
-    var consumeText = function () {
+    var consumeText = function consumeText() {
       var result = "";
       var value;
       while (value = tryConsume("CHAR") || tryConsume("ESCAPED_CHAR")) {
@@ -1961,11 +2095,11 @@
       return result;
     };
     while (i < tokens.length) {
-      var char = tryConsume("CHAR");
+      var _char2 = tryConsume("CHAR");
       var name = tryConsume("NAME");
       var pattern = tryConsume("PATTERN");
       if (name || pattern) {
-        var prefix = char || "";
+        var prefix = _char2 || "";
         if (prefixes.indexOf(prefix) === -1) {
           path += prefix;
           prefix = "";
@@ -1983,7 +2117,7 @@
         });
         continue;
       }
-      var value = char || tryConsume("ESCAPED_CHAR");
+      var value = _char2 || tryConsume("ESCAPED_CHAR");
       if (value) {
         path += value;
         continue;
@@ -2034,7 +2168,7 @@
       validate = _b === void 0 ? true : _b;
     // Compile all the tokens into regexps.
     var matches = tokens.map(function (token) {
-      if (typeof token === "object") {
+      if (_typeof$1(token) === "object") {
         return new RegExp("^(?:".concat(token.pattern, ")$"), reFlags);
       }
     });
@@ -2086,7 +2220,7 @@
    */
   function match(str, options) {
     var keys = [];
-    var re = pathToRegexp(str, keys, options);
+    var re = pathToRegexp$1(str, keys, options);
     return regexpToFunction(re, keys, options);
   }
   /**
@@ -2106,7 +2240,7 @@
       var path = m[0],
         index = m.index;
       var params = Object.create(null);
-      var _loop_1 = function (i) {
+      var _loop_1 = function _loop_1(i) {
         if (m[i] === undefined) return "continue";
         var key = keys[i - 1];
         if (key.modifier === "*" || key.modifier === "+") {
@@ -2165,7 +2299,7 @@
    */
   function arrayToRegexp(paths, keys, options) {
     var parts = paths.map(function (path) {
-      return pathToRegexp(path, keys, options).source;
+      return pathToRegexp$1(path, keys, options).source;
     });
     return new RegExp("(?:".concat(parts.join("|"), ")"), flags(options));
   }
@@ -2250,28 +2384,37 @@
    * placeholder key descriptions. For example, using `/user/:id`, `keys` will
    * contain `[{ name: 'id', delimiter: '/', optional: false, repeat: false }]`.
    */
-  function pathToRegexp(path, keys, options) {
+  function pathToRegexp$1(path, keys, options) {
     if (path instanceof RegExp) return regexpToRegexp(path, keys);
     if (Array.isArray(path)) return arrayToRegexp(path, keys, options);
     return stringToRegexp(path, keys, options);
   }
   var dist_es2015 = /*#__PURE__*/Object.freeze({
-    parse: parse,
+    __proto__: null,
     compile: compile,
-    tokensToFunction: tokensToFunction,
     match: match,
-    regexpToFunction: regexpToFunction,
-    tokensToRegexp: tokensToRegexp,
-    pathToRegexp: pathToRegexp
-  });
-  const {
+    parse: parse,
     pathToRegexp: pathToRegexp$1,
-    compile: compile$1,
-    parse: parse$1
-  } = dist_es2015;
-  // const { parse: parseUrl, format: formatUrl } = require('url');
+    regexpToFunction: regexpToFunction,
+    tokensToFunction: tokensToFunction,
+    tokensToRegexp: tokensToRegexp
+  });
+  var require$$2 = /*@__PURE__*/getAugmentedNamespace(dist_es2015);
+  function _typeof(o) {
+    "@babel/helpers - typeof";
 
-  var layer = Layer;
+    return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function (o) {
+      return typeof o;
+    } : function (o) {
+      return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
+    }, _typeof(o);
+  }
+
+  // const { parse: parseUrl, format: formatUrl } = require('url');
+  var pathToRegexp = require$$2.pathToRegexp;
+  require$$2.compile;
+  require$$2.parse;
+  var layer = Layer$1;
 
   /**
    * Initialize a new routing Layer with given `method`, `path`, and `middleware`.
@@ -2287,25 +2430,26 @@
    * @private
    */
 
-  function Layer(path, methods, middleware, opts = {}) {
+  function Layer$1(path, methods, middleware) {
+    var opts = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
     this.opts = opts;
     this.name = this.opts.name || null;
     this.methods = [];
     this.paramNames = [];
     this.stack = Array.isArray(middleware) ? middleware : [middleware];
-    for (const method of methods) {
-      const l = this.methods.push(method.toUpperCase());
+    for (var method of methods) {
+      var l = this.methods.push(method.toUpperCase());
       if (this.methods[l - 1] === 'GET') this.methods.unshift('HEAD');
     }
 
     // ensure middleware is a function
-    for (let i = 0; i < this.stack.length; i++) {
-      const fn = this.stack[i];
-      const type = typeof fn;
-      if (type !== 'function') throw new Error(`${methods.toString()} \`${this.opts.name || path}\`: \`middleware\` must be a function, not \`${type}\``);
+    for (var i = 0; i < this.stack.length; i++) {
+      var fn = this.stack[i];
+      var type = _typeof(fn);
+      if (type !== 'function') throw new Error("".concat(methods.toString(), " `").concat(this.opts.name || path, "`: `middleware` must be a function, not `").concat(type, "`"));
     }
     this.path = path;
-    this.regexp = pathToRegexp$1(path, this.paramNames, this.opts);
+    this.regexp = pathToRegexp(path, this.paramNames, this.opts);
   }
 
   /**
@@ -2316,7 +2460,7 @@
    * @private
    */
 
-  Layer.prototype.match = function (path) {
+  Layer$1.prototype.match = function (path) {
     return this.regexp.test(path);
   };
 
@@ -2330,10 +2474,11 @@
    * @private
    */
 
-  Layer.prototype.params = function (path, captures, params = {}) {
-    for (let len = captures.length, i = 0; i < len; i++) {
+  Layer$1.prototype.params = function (path, captures) {
+    var params = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+    for (var len = captures.length, i = 0; i < len; i++) {
       if (this.paramNames[i]) {
-        const c = captures[i];
+        var c = captures[i];
         if (c && c.length > 0) params[this.paramNames[i].name] = c ? safeDecodeURIComponent(c) : c;
       }
     }
@@ -2348,7 +2493,7 @@
    * @private
    */
 
-  Layer.prototype.captures = function (path) {
+  Layer$1.prototype.captures = function (path) {
     return this.opts.ignoreCaptures ? [] : path.match(this.regexp).slice(1);
   };
 
@@ -2406,7 +2551,7 @@
   //       replaced.search = undefined;
   //       replaced.query = options.query;
   //     }
-  //
+
   //     return formatUrl(replaced);
   //   }
 
@@ -2436,19 +2581,17 @@
    * @private
    */
 
-  Layer.prototype.param = function (param, fn) {
-    const {
-      stack
-    } = this;
-    const params = this.paramNames;
-    const middleware = function (ctx, next) {
+  Layer$1.prototype.param = function (param, fn) {
+    var stack = this.stack;
+    var params = this.paramNames;
+    var middleware = function middleware(ctx, next) {
       return fn.call(this, ctx.params[param], ctx, next);
     };
     middleware.param = param;
-    const names = params.map(function (p) {
+    var names = params.map(function (p) {
       return p.name;
     });
-    const x = names.indexOf(param);
+    var x = names.indexOf(param);
     if (x > -1) {
       // iterate through the stack, to figure out where to place the handler fn
       stack.some(function (fn, i) {
@@ -2481,7 +2624,7 @@
   //     this.paramNames = [];
   //     this.regexp = pathToRegexp(this.path, this.paramNames, this.opts);
   //   }
-  //
+
   //   return this;
   // };
 
@@ -2497,23 +2640,18 @@
   function safeDecodeURIComponent(text) {
     try {
       return decodeURIComponent(text);
-    } catch {
+    } catch (_unused) {
       return text;
     }
   }
 
-  /**
-   * RESTful resource routing middleware for koa.
-   *
-   * @author Alex Mingoia <talk@alexmingoia.com>
-   * @link https://github.com/alexmingoia/koa-router
-   */
-
   // const { debuglog } = require('util');
 
+  var compose$2 = compose_1;
   // const HttpError = require('http-errors');
-
-  // const { pathToRegexp } = require('path-to-regexp');
+  var methods = methods$1;
+  require$$2.pathToRegexp;
+  var Layer = layer;
 
   // const debug = debuglog('koa-router');
 
@@ -2521,7 +2659,7 @@
    * @module koa-router
    */
 
-  var router$1 = Router;
+  var router$1 = Router$1;
 
   /**
    * Create a new router.
@@ -2554,8 +2692,9 @@
    * @constructor
    */
 
-  function Router(opts = {}) {
-    if (!(this instanceof Router)) return new Router(opts);
+  function Router$1() {
+    var opts = arguments.length > 0 && arguments[0] !== undefined ? arguments[0] : {};
+    if (!(this instanceof Router$1)) return new Router$1(opts);
     this.opts = opts;
     this.methods = this.opts.methods || ['HEAD', 'OPTIONS', 'GET', 'PUT', 'PATCH', 'POST', 'DELETE'];
     this.exclusive = Boolean(this.opts.exclusive);
@@ -2702,36 +2841,36 @@
    * @param {Function} callback route callback
    * @returns {Router}
    */
+  var _loop = function _loop() {
+    function setMethodVerb(method) {
+      Router$1.prototype[method] = function (name, path, middleware) {
+        if (typeof path === 'string' || path instanceof RegExp) {
+          middleware = Array.prototype.slice.call(arguments, 2);
+        } else {
+          middleware = Array.prototype.slice.call(arguments, 1);
+          path = name;
+          name = null;
+        }
 
-  function setMethodVerb(method) {
-    Router.prototype[method] = function (name, path, middleware) {
-      if (typeof path === 'string' || path instanceof RegExp) {
-        middleware = Array.prototype.slice.call(arguments, 2);
-      } else {
-        middleware = Array.prototype.slice.call(arguments, 1);
-        path = name;
-        name = null;
-      }
-
-      // Sanity check to ensure we have a viable path candidate (eg: string|regex|non-empty array)
-      if (typeof path !== 'string' && !(path instanceof RegExp) && (!Array.isArray(path) || path.length === 0)) throw new Error(`You have to provide a path when adding a ${method} handler`);
-      this.register(path, [method], middleware, {
-        name
-      });
-      return this;
-    };
-  }
-  for (const method_ of methods) {
+        // Sanity check to ensure we have a viable path candidate (eg: string|regex|non-empty array)
+        if (typeof path !== 'string' && !(path instanceof RegExp) && (!Array.isArray(path) || path.length === 0)) throw new Error("You have to provide a path when adding a ".concat(method, " handler"));
+        this.register(path, [method], middleware, {
+          name: name
+        });
+        return this;
+      };
+    }
     setMethodVerb(method_);
+  };
+  for (var method_ of methods) {
+    _loop();
   }
 
   // Alias for `router.delete()` because delete is a reserved word
   // eslint-disable-next-line dot-notation
-  Router.prototype.del = Router.prototype['delete'];
-
-  // @head/edge
-  Router.prototype.verb = function (method, pathToMath, action) {
-    const verb = method.toUpperCase();
+  Router$1.prototype.del = Router$1.prototype['delete'];
+  Router$1.prototype.verb = function (method, pathToMath, action) {
+    var verb = method.toUpperCase();
     this[verb](pathToMath, action);
   };
 
@@ -2769,20 +2908,20 @@
   //   const router = this;
   //   const middleware = Array.prototype.slice.call(arguments);
   //   let path;
-  //
+
   //   // support array of paths
   //   if (Array.isArray(middleware[0]) && typeof middleware[0][0] === 'string') {
   //     const arrPaths = middleware[0];
   //     for (const p of arrPaths) {
   //       router.use.apply(router, [p].concat(middleware.slice(1)));
   //     }
-  //
+
   //     return this;
   //   }
-  //
+
   //   const hasPath = typeof middleware[0] === 'string';
   //   if (hasPath) path = middleware.shift();
-  //
+
   //   for (const m of middleware) {
   //     if (m.router) {
   //       const cloneRouter = Object.assign(
@@ -2792,20 +2931,20 @@
   //           stack: [...m.router.stack]
   //         }
   //       );
-  //
+
   //       for (let j = 0; j < cloneRouter.stack.length; j++) {
   //         const nestedLayer = cloneRouter.stack[j];
   //         const cloneLayer = Object.assign(
   //           Object.create(Layer.prototype),
   //           nestedLayer
   //         );
-  //
+
   //         if (path) cloneLayer.setPrefix(path);
   //         if (router.opts.prefix) cloneLayer.setPrefix(router.opts.prefix);
   //         router.stack.push(cloneLayer);
   //         cloneRouter.stack[j] = cloneLayer;
   //       }
-  //
+
   //       if (router.params) {
   //         function setRouterParams(paramArr) {
   //           const routerParams = paramArr;
@@ -2813,7 +2952,7 @@
   //             cloneRouter.param(key, router.params[key]);
   //           }
   //         }
-  //
+
   //         setRouterParams(Object.keys(router.params));
   //       }
   //     } else {
@@ -2826,7 +2965,7 @@
   //       });
   //     }
   //   }
-  //
+
   //   return this;
   // };
 
@@ -2862,9 +3001,9 @@
    * @returns {Function}
    */
 
-  Router.prototype.routes = Router.prototype.middleware = function () {
-    const router = this;
-    const dispatch = function dispatch(ctx, next) {
+  Router$1.prototype.routes = Router$1.prototype.middleware = function () {
+    var router = this;
+    var dispatch = function dispatch(ctx, next) {
       // debug('%s %s', ctx.method, ctx.path);
 
       // const hostMatched = router.matchHost(ctx.host);
@@ -2873,9 +3012,9 @@
       //   return next();
       // }
 
-      const path = router.opts.routerPath || ctx.routerPath || ctx.path;
-      const matched = router.match(path, ctx.method);
-      let layerChain;
+      var path = router.opts.routerPath || ctx.routerPath || ctx.path;
+      var matched = router.match(path, ctx.method);
+      var layerChain;
       if (ctx.matched) {
         ctx.matched.push.apply(ctx.matched, matched.path);
       } else {
@@ -2883,8 +3022,8 @@
       }
       ctx.router = router;
       if (!matched.route) return next();
-      const matchedLayers = matched.pathAndMethod;
-      const mostSpecificLayer = matchedLayers[matchedLayers.length - 1];
+      var matchedLayers = matched.pathAndMethod;
+      var mostSpecificLayer = matchedLayers[matchedLayers.length - 1];
       ctx._matchedRoute = mostSpecificLayer.path;
       if (mostSpecificLayer.name) {
         ctx._matchedRouteName = mostSpecificLayer.name;
@@ -2903,7 +3042,7 @@
         });
         return memo.concat(layer.stack);
       }, []);
-      return compose_1$1(layerChain)(ctx, next);
+      return compose$2(layerChain)(ctx, next);
     };
     dispatch.router = this;
     return dispatch;
@@ -3094,22 +3233,21 @@
    * @private
    */
 
-  Router.prototype.register = function (path, methods, middleware, opts = {}) {
-    const router = this;
-    const {
-      stack
-    } = this;
+  Router$1.prototype.register = function (path, methods, middleware) {
+    var opts = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : {};
+    var router = this;
+    var stack = this.stack;
 
     // support array of paths
     if (Array.isArray(path)) {
-      for (const curPath of path) {
+      for (var curPath of path) {
         router.register.call(router, curPath, methods, middleware, opts);
       }
       return this;
     }
 
     // create route
-    const route = new layer(path, methods, middleware, {
+    var route = new Layer(path, methods, middleware, {
       end: opts.end === false ? opts.end : true,
       name: opts.name,
       sensitive: opts.sensitive || this.opts.sensitive || false,
@@ -3122,8 +3260,8 @@
     }
 
     // add parameter middleware
-    for (let i = 0; i < Object.keys(this.params).length; i++) {
-      const param = Object.keys(this.params)[i];
+    for (var i = 0; i < Object.keys(this.params).length; i++) {
+      var param = Object.keys(this.params)[i];
       route.param(param, this.params[param]);
     }
     stack.push(route);
@@ -3206,15 +3344,15 @@
    * @private
    */
 
-  Router.prototype.match = function (path, method) {
-    const layers = this.stack;
-    let layer;
-    const matched = {
+  Router$1.prototype.match = function (path, method) {
+    var layers = this.stack;
+    var layer;
+    var matched = {
       path: [],
       pathAndMethod: [],
       route: false
     };
-    for (let len = layers.length, i = 0; i < len; i++) {
+    for (var len = layers.length, i = 0; i < len; i++) {
       layer = layers[i];
 
       // debug('test %s %s', layer.path, layer.regexp);
@@ -3239,7 +3377,10 @@
   // const isGeneratorFunction = require('is-generator-function');
   // const debug = require('debug')('koa:application');
   // const onFinished = require('on-finished');
-
+  var compose = compose_1$1;
+  var context = contextExports;
+  var request = request$1;
+  var response = response$1;
   // const statuses = require('statuses');
   // const Emitter = require('events');
   // const util = require('util');
@@ -3249,6 +3390,8 @@
   // const convert = require('koa-convert');
   // const deprecate = require('depd')('koa');
   // const { HttpError } = require('http-errors');
+  var Client = client$1;
+  var Router = router_1;
 
   /**
    * Expose `Application` class.
@@ -3256,7 +3399,7 @@
    */
 
   // module.exports = class Application extends Emitter {
-  var application = class Application {
+  var application = /*#__PURE__*/function () {
     /**
      * Initialize a new `Application`.
      *
@@ -3275,7 +3418,8 @@
       *
       */
 
-    constructor(options) {
+    function Application(options) {
+      _classCallCheck(this, Application);
       // super();
       options = options || {};
       // this.proxy = options.proxy || false;
@@ -3289,12 +3433,12 @@
       this.request = Object.create(request);
       this.response = Object.create(response);
       // util.inspect.custom support for node 6+
-      /* istanbul ignore else */
+      // /* istanbul ignore else */
       // if (util.inspect.custom) {
       //   this[util.inspect.custom] = this.inspect;
       // }
 
-      this.router = new router_1({
+      this.router = new Router({
         exclusive: true
       });
       this.use(this.router.routes());
@@ -3310,151 +3454,164 @@
      * @return {Server}
      * @api public
      */
+    return _createClass(Application, [{
+      key: "listen",
+      value: function listen() {
+        // debug('listen');
+        // const server = http.createServer(this.callback());
+        // return server.listen(...args);
+        var handleRequest = this.callback();
+        this.client = new Client({
+          handleRequest: handleRequest
+        });
+      }
 
-    listen(...args) {
-      // debug('listen');
-      // const server = http.createServer(this.callback());
-      // return server.listen(...args);
-      const handleRequest = this.callback();
-      this.client = new client$1({
-        handleRequest
-      });
-    }
+      /**
+       * Return JSON representation.
+       * We only bother showing settings.
+       *
+       * @return {Object}
+       * @api public
+       */
 
-    /**
-     * Return JSON representation.
-     * We only bother showing settings.
-     *
-     * @return {Object}
-     * @api public
-     */
+      // toJSON() {
+      //   return only(this, [
+      //     'subdomainOffset',
+      //     'proxy',
+      //     'env'
+      //   ]);
+      // }
 
-    // toJSON() {
-    //   return only(this, [
-    //     'subdomainOffset',
-    //     'proxy',
-    //     'env'
-    //   ]);
-    // }
+      /**
+       * Inspect implementation.
+       *
+       * @return {Object}
+       * @api public
+       */
 
-    /**
-     * Inspect implementation.
-     *
-     * @return {Object}
-     * @api public
-     */
+      // inspect() {
+      //   return this.toJSON();
+      // }
 
-    // inspect() {
-    //   return this.toJSON();
-    // }
+      /**
+       * Use the given middleware `fn`.
+       *
+       * Old-style middleware will be converted.
+       *
+       * @param {Function} fn
+       * @return {Application} self
+       * @api public
+       */
+    }, {
+      key: "use",
+      value: function use(fn) {
+        if (typeof fn !== 'function') throw new TypeError('middleware must be a function!');
+        // if (isGeneratorFunction(fn)) {
+        //   deprecate('Support for generators will be removed in v3. ' +
+        //             'See the documentation for examples of how to convert old middleware ' +
+        //             'https://github.com/koajs/koa/blob/master/docs/migration.md');
+        //   fn = convert(fn);
+        // }
+        // debug('use %s', fn._name || fn.name || '-');
+        this.middleware.push(fn);
+        return this;
+      }
 
-    /**
-     * Use the given middleware `fn`.
-     *
-     * Old-style middleware will be converted.
-     *
-     * @param {Function} fn
-     * @return {Application} self
-     * @api public
-     */
+      /**
+       * Return a request handler callback
+       * for node's native http server.
+       *
+       * @return {Function}
+       * @api public
+       */
+    }, {
+      key: "callback",
+      value: function callback() {
+        var _this = this;
+        var fn = compose(this.middleware);
 
-    use(fn) {
-      if (typeof fn !== 'function') throw new TypeError('middleware must be a function!');
-      //   if (isGeneratorFunction(fn)) {
-      //     deprecate('Support for generators will be removed in v3. ' +
-      //               'See the documentation for examples of how to convert old middleware ' +
-      //               'https://github.com/koajs/koa/blob/master/docs/migration.md');
-      //     fn = convert(fn);
-      //   }
-      //   debug('use %s', fn._name || fn.name || '-');
-      this.middleware.push(fn);
-      return this;
-    }
+        // if (!this.listenerCount('error')) this.on('error', this.onerror);
 
-    /**
-     * Return a request handler callback
-     * for node's native http server.
-     *
-     * @return {Function}
-     * @api public
-     */
+        var handleRequest = function handleRequest(req, res) {
+          var ctx = _this.createContext(req, res);
+          return _this.handleRequest(ctx, fn);
+        };
+        return handleRequest;
+      }
 
-    callback() {
-      const fn = compose_1(this.middleware);
+      /**
+       * Handle request in callback.
+       *
+       * @api private
+       */
+    }, {
+      key: "handleRequest",
+      value: function handleRequest(ctx, fnMiddleware) {
+        var res = ctx.res;
+        res.statusCode = 404;
+        var onerror = function onerror(err) {
+          return ctx.onerror(err);
+        };
+        var handleResponse = function handleResponse() {
+          return respond(ctx);
+        };
+        // onFinished(res, onerror);
+        return fnMiddleware(ctx).then(handleResponse)["catch"](onerror);
+      }
 
-      // if (!this.listenerCount('error')) this.on('error', this.onerror);
+      /**
+       * Initialize a new context.
+       *
+       * @api private
+       */
+    }, {
+      key: "createContext",
+      value: function createContext(req, res) {
+        var context = Object.create(this.context);
+        var request = context.request = Object.create(this.request);
+        var response = context.response = Object.create(this.response);
+        context.app = request.app = response.app = this;
+        context.req = request.req = response.req = req;
+        context.res = request.res = response.res = res;
+        // request.ctx = response.ctx = context;
+        // request.response = response;
+        // response.request = request;
+        // context.originalUrl = request.originalUrl = req.url;
+        context.state = {};
+        return context;
+      }
 
-      const handleRequest = (req, res) => {
-        const ctx = this.createContext(req, res);
-        return this.handleRequest(ctx, fn);
-      };
-      return handleRequest;
-    }
+      /**
+       * Default error handler.
+       *
+       * @param {Error} err
+       * @api private
+       */
+    }, {
+      key: "onerror",
+      value: function onerror(err) {
+        // When dealing with cross-globals a normal `instanceof` check doesn't work properly.
+        // See https://github.com/koajs/koa/issues/1466
+        // We can probably remove it once jest fixes https://github.com/facebook/jest/issues/2549.
+        var isNativeError = Object.prototype.toString.call(err) === '[object Error]' || err instanceof Error;
+        if (!isNativeError) throw new TypeError(util.format('non-error thrown: %j', err));
+        if (404 === err.status || err.expose) return;
+        if (this.silent) return;
+        var msg = err.stack || err.toString();
+        console.error("\n".concat(msg.replace(/^/gm, '  '), "\n"));
+      }
 
-    /**
-     * Handle request in callback.
-     *
-     * @api private
-     */
-
-    handleRequest(ctx, fnMiddleware) {
-      const res = ctx.res;
-      res.statusCode = 404;
-      const onerror = err => ctx.onerror(err);
-      const handleResponse = () => respond(ctx);
-      // onFinished(res, onerror);
-      return fnMiddleware(ctx).then(handleResponse).catch(onerror);
-    }
-
-    /**
-     * Initialize a new context.
-     *
-     * @api private
-     */
-
-    createContext(req, res) {
-      const context = Object.create(this.context);
-      const request = context.request = Object.create(this.request);
-      const response = context.response = Object.create(this.response);
-      context.app = request.app = response.app = this;
-      context.req = request.req = response.req = req;
-      context.res = request.res = response.res = res;
-      // request.ctx = response.ctx = context;
-      // request.response = response;
-      // response.request = request;
-      // context.originalUrl = request.originalUrl = req.url;
-      context.state = {};
-      return context;
-    }
-
-    /**
-     * Default error handler.
-     *
-     * @param {Error} err
-     * @api private
-     */
-
-    onerror(err) {
-      // When dealing with cross-globals a normal `instanceof` check doesn't work properly.
-      // See https://github.com/koajs/koa/issues/1466
-      // We can probably remove it once jest fixes https://github.com/facebook/jest/issues/2549.
-      const isNativeError = Object.prototype.toString.call(err) === '[object Error]' || err instanceof Error;
-      if (!isNativeError) throw new TypeError(console.error(`non-error thrown: ${err}`));
-      if (404 === err.status || err.expose) return;
-      if (this.silent) return;
-      const msg = err.stack || err.toString();
-      console.error(`${msg.replace(/^/gm, '  ')}`);
-    }
-
-    /**
-     * Help TS users comply to CommonJS, ESM, bundler mismatch.
-     * @see https://github.com/koajs/koa/issues/1513
-     */
-
-    static get default() {
-      return Application;
-    }
-  };
+      /**
+       * Help TS users comply to CommonJS, ESM, bundler mismatch.
+       * @see https://github.com/koajs/koa/issues/1513
+       */
+    }], [{
+      key: "default",
+      get: function get() {
+        return Application;
+      }
+    }]);
+  }();
 
   /**
    * Response helper.
@@ -3464,8 +3621,8 @@
     // allow bypassing koa
     if (false === ctx.respond) return;
     if (!ctx.writable) return;
-    const res = ctx.res;
-    let body = ctx.body;
+    var res = ctx.res;
+    var body = ctx.body;
     ctx.status;
 
     // ignore body
@@ -3500,7 +3657,7 @@
       //   ctx.length = Buffer.byteLength(body);
       // }
       // return res.end(body);
-      ctx.throw(res.statusCode);
+      ctx["throw"](res.statusCode);
     }
 
     // responses
@@ -3563,7 +3720,8 @@
     };
   }
 
-  debug('frontstage.js');
+  // logger.debug('frontstage.js');
+
   const $callback = new Callback();
   const {
     router,
@@ -3623,9 +3781,13 @@
     } else if (type === 'CALL' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
       debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
       // const resolved = { code: 0, message: 'call : backstage -> frontstage : ok' };
-      const resolved = await client.verb(call.method, call.ep, call.search, call.form);
-      const rejected = null;
-      callbackBackstage(callback, resolved, rejected);
+
+      try {
+        const resolved = await client.verb(call.method, call.ep, call.search, call.form);
+        callbackBackstage(callback, resolved, null);
+      } catch (rejected) {
+        callbackBackstage(callback, null, rejected);
+      }
     } else {
       ignore('[FRONTSTAGE] window.addEventListener.message', data);
     }
@@ -3646,5 +3808,10 @@
   };
   backstage.route = router.verb.bind(router);
   backstage.verb = client.verb.bind(client);
+  window.postMessage({
+    source: SOURCE,
+    type: 'READY',
+    from: 'FRONTSTAGE'
+  });
 
 })();

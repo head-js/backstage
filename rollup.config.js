@@ -12,6 +12,7 @@ export default [
 
     external: [
       'core-js/modules/es.promise.js',
+      'core-js/modules/es.regexp.exec.js',
     ],
 
     plugins: [
@@ -33,6 +34,7 @@ export default [
       }),
 
       replace({
+        preventAssignment: true,
         'process.env.NODE_ENV': JSON.stringify('production'),
       })
     ],

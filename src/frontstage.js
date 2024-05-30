@@ -4,7 +4,7 @@ import { SOURCE } from './utils/constants';
 import Callback from './utils/callback';
 
 
-logger.debug('frontstage.js');
+// logger.debug('frontstage.js');
 
 
 const $callback = new Callback();
@@ -46,10 +46,13 @@ window.addEventListener('message', async ({ /* type, source, origin, */ data }) 
   } else if (type === 'CALL' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
     logger.debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
     // const resolved = { code: 0, message: 'call : backstage -> frontstage : ok' };
-    const resolved = await client.verb(call.method, call.ep, call.search, call.form);
-    const rejected = null;
 
-    callbackBackstage(callback, resolved, rejected);
+    try {
+      const resolved = await client.verb(call.method, call.ep, call.search, call.form);
+      callbackBackstage(callback, resolved, null);
+    } catch (rejected) {
+      callbackBackstage(callback, null, rejected);
+    }
   } else {
     logger.ignore('[FRONTSTAGE] window.addEventListener.message', data);
   }
@@ -70,3 +73,6 @@ backstage.route = router.verb.bind(router);
 
 
 backstage.verb = client.verb.bind(client);
+
+
+window.postMessage({ source: SOURCE, type: 'READY', from: 'FRONTSTAGE' });
