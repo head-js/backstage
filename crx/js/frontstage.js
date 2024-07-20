@@ -3676,17 +3676,6 @@
 
   var application_1 = application;
 
-  function ignore(message) {
-    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-    console.log('%c%s', 'color: #727272', message, extra1);
-  }
-  function debug(message) {
-    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-    let extra2 = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
-    let extra3 = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
-    console.log('%c%s', 'background-color: #f0f9ff', message, extra1, extra2, extra3);
-  }
-
   const SOURCE = '@head/backstage'; // eslint-disable-line import/prefer-default-export
 
   function seq() {
@@ -3719,8 +3708,6 @@
       }
     };
   }
-
-  // logger.debug('frontstage.js');
 
   const $callback = new Callback();
   const {
@@ -3776,10 +3763,10 @@
       callback
     } = data;
     if (type === 'CALLBACK' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
-      debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
+      console.debug("%c%s", "background-color: #f0f9ff", '[FRONTSTAGE] window.addEventListener.message', from, to, type);
       $callback(callback, call.resolved, call.rejected);
     } else if (type === 'CALL' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
-      debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
+      console.debug("%c%s", "background-color: #f0f9ff", '[FRONTSTAGE] window.addEventListener.message', from, to, type);
       // const resolved = { code: 0, message: 'call : backstage -> frontstage : ok' };
 
       try {
@@ -3789,7 +3776,7 @@
         callbackBackstage(callback, null, rejected);
       }
     } else {
-      ignore('[FRONTSTAGE] window.addEventListener.message', data);
+      console.debug("%c%s", "color: #727272", '[FRONTSTAGE] window.addEventListener.message', data);
     }
   });
   const backstage = window.backstage || {};

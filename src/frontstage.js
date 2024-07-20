@@ -1,10 +1,6 @@
 import Application from '@head/edge';
-import * as logger from './utils/logger';
 import { SOURCE } from './utils/constants';
 import Callback from './utils/callback';
-
-
-// logger.debug('frontstage.js');
 
 
 const $callback = new Callback();
@@ -41,10 +37,10 @@ window.addEventListener('message', async ({ /* type, source, origin, */ data }) 
   const { from, to, type, call, callback } = data;
 
   if (type === 'CALLBACK' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
-    logger.debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
+    console.debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
     $callback(callback, call.resolved, call.rejected);
   } else if (type === 'CALL' && from === 'BACKSTAGE' && to === 'FRONTSTAGE') {
-    logger.debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
+    console.debug('[FRONTSTAGE] window.addEventListener.message', from, to, type);
     // const resolved = { code: 0, message: 'call : backstage -> frontstage : ok' };
 
     try {
@@ -54,7 +50,7 @@ window.addEventListener('message', async ({ /* type, source, origin, */ data }) 
       callbackBackstage(callback, null, rejected);
     }
   } else {
-    logger.ignore('[FRONTSTAGE] window.addEventListener.message', data);
+    console.verbose('[FRONTSTAGE] window.addEventListener.message', data);
   }
 });
 

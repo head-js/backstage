@@ -1,17 +1,6 @@
 (function () {
   'use strict';
 
-  function ignore(message) {
-    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-    console.log('%c%s', 'color: #727272', message, extra1);
-  }
-  function debug(message) {
-    let extra1 = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
-    let extra2 = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : '';
-    let extra3 = arguments.length > 3 && arguments[3] !== undefined ? arguments[3] : '';
-    console.log('%c%s', 'background-color: #f0f9ff', message, extra1, extra2, extra3);
-  }
-
   const SOURCE = '@head/backstage'; // eslint-disable-line import/prefer-default-export
 
   function requirejs(src) {
@@ -52,8 +41,6 @@
       }
     };
   }
-
-  // logger.debug('backstage.js');
 
   requirejs('js/frontstage.js');
   const $callback = new Callback();
@@ -120,7 +107,7 @@
       callback
     } = data;
     if (type === 'CALL' && from === 'FRONTSTAGE' && to === 'BACKSTAGE') {
-      debug('\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
+      console.debug("%c%s", "background-color: #f0f9ff", '\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
       try {
         const resolved = await callBackground(call);
         callbackFrontstage(callback, resolved, null);
@@ -128,10 +115,10 @@
         callbackFrontstage(callback, null, rejected);
       }
     } else if (type === 'CALLBACK' && from === 'FRONTSTAGE' && to === 'BACKSTAGE') {
-      debug('\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
+      console.debug("%c%s", "background-color: #f0f9ff", '\t\t[BACKSTAGE] window.addEventListener.message', from, to, type);
       $callback(callback, call.resolved, call.rejected);
     } else {
-      ignore('\t\t[BACKSTAGE] window.addEventListener.message', data);
+      console.debug("%c%s", "color: #727272", '\t\t[BACKSTAGE] window.addEventListener.message', data);
     }
   });
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
@@ -142,22 +129,22 @@
       call
     } = message;
     if (type === 'CALL' && from === 'BACKGROUND' && to === 'BACKSTAGE') {
-      debug('\t\t[BACKSTAGE] chrome.runtime.onMessage', from, to, type);
+      console.debug("%c%s", "background-color: #f0f9ff", '\t\t[BACKSTAGE] chrome.runtime.onMessage', from, to, type);
       callFrontstage(call).then(resolved => {
-        debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
+        console.debug("%c%s", "background-color: #f0f9ff", '\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
         respond({
           resolved,
           rejected: null
         });
       }).catch(rejected => {
-        debug('\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
+        console.debug("%c%s", "background-color: #f0f9ff", '\t\t[BACKSTAGE] chrome.runtime.onMessage.respond');
         respond({
           resolved: null,
           rejected
         });
       });
     } else {
-      ignore('\t\t[BACKSTAGE] chrome.runtime.onMessage', message);
+      console.debug("%c%s", "color: #727272", '\t\t[BACKSTAGE] chrome.runtime.onMessage', message);
     }
     return true;
   });
