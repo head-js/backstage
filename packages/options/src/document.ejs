@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no" />
+  <link rel="icon" type="image/png" href="<%= VUE_APP_CDN %>/img/favicon.png" />
+  <title>Backstage</title>
+</head>
+
+<body>
+  <div class="App" data-pathname="/">
+    <section class="el-container">
+      <aside id="aside" class="el-aside"></aside>
+      <section id="root" class="el-container is-vertical"></section>
+    </section>
+  </div>
+
+  <script src="<%= VUE_APP_CDN %>/systemjs/6.13.0/system.js"></script>
+  <script src="<%= VUE_APP_CDN %>/systemjs/6.13.0/extra/amd-esm.js"></script>
+
+  <script>
+    // System.addImportMap({
+    //   imports: {
+    //   },
+    // });
+    // app-*
+    System.addImportMap({
+      imports: {
+        'app-account': '<%= VUE_APP_BACKSTAGE %>/app-account/rsrc/dist/umi.js',
+        'app-options': '<%= VUE_APP_BACKSTAGE %>/app-options/rsrc/dist/umi.js',
+      },
+    });
+    // entry
+    System.import('<%= VUE_APP_UMI_VENDOR_JS %>');
+    System.import('<%= VUE_APP_UMI_ENTRY_JS %>');
+  </script>
+</body>
+</html>
