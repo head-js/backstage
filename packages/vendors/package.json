@@ -1,0 +1,22 @@
+{
+  "name": "vendors",
+  "version": "0.1.0",
+  "description": "vendors",
+  "main": "index.js",
+  "files": [],
+  "scripts": {
+    "build": "ANALYZE=1 webpack --config=webpack.config.js"
+  },
+  "author": "hbrls",
+  "license": "MIT",
+  "dependencies": {
+    "ajv": "6.12.6",
+    "jsonata": "2.0.5",
+    "rxjs": "7.5.7"
+  },
+  "devDependencies": {
+    "webpack": "5.74.0",
+    "webpack-chain": "6.5.1",
+    "webpack-cli": "4.7.2"
+  }
+}

@@ -42,6 +42,7 @@
     };
   }
 
+  requirejs('vendors/backstage-vendors.js');
   requirejs('js/frontstage.js');
   const $callback = new Callback();
   function callFrontstage(call) {

@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "@head/backstage",
   "description": "Starter template built with ExtensionKit.io",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "icons": {
     "128": "icons/icon.png"
   },
@@ -30,7 +30,16 @@
   "options_page": "options.html",
   "web_accessible_resources": [
     {
-      "resources": [ "js/frontstage.js" ],
+      "resources": [
+        "vendors/backstage-vendors.js",
+        "vendors/src_ajv_js.js",
+        "vendors/vendors-node_modules_ajv_lib_ajv_js.js",
+        "vendors/src_jsonata_js.js",
+        "vendors/vendors-node_modules_jsonata_jsonata_js.js",
+        "vendors/src_rxjs_js.js",
+        "vendors/vendors-node_modules_rxjs_dist_esm5_index_js.js",
+        "js/frontstage.js"
+      ],
       "matches": [ "<all_urls>" ]
     }
   ],

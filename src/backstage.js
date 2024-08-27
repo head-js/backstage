@@ -3,6 +3,7 @@ import requirejs from './utils/requirejs';
 import Callback from './utils/callback';
 
 
+requirejs('vendors/backstage-vendors.js');
 requirejs('js/frontstage.js');
 
 
