@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "backstage",
+    "slug": "backstage",
+    "version": "0.1.0",
+    "description": "",
+    "sdkVersion": "49.0.0",
+    "platforms": [
+      "ios",
+      "android"
+    ],
+    "ios": {
+      "bundleIdentifier": "com.lisitede.backstage.daemon"
+    },
+    "android": {
+      "package": "com.lisitede.backstage.daemon"
+    }
+  }
+}
