@@ -1,6 +1,9 @@
 import Application from '@head/edge';
 import { SOURCE } from './utils/constants';
 import Callback from './utils/callback';
+import '@shoelace-style/shoelace/dist/components/alert/alert.js'; // eslint-disable-line import/extensions
+import '@shoelace-style/shoelace/dist/components/drawer/drawer.js'; // eslint-disable-line import/extensions
+// import '@shoelace-style/shoelace/dist/themes/light.css';
 
 
 const $callback = new Callback();
@@ -69,6 +72,56 @@ backstage.route = router.verb.bind(router);
 
 
 backstage.verb = client.verb.bind(client);
+
+
+backstage.toast = function toast(message, variant = 'primary', duration = 2000) {
+  // console.log('@head/backstage toast');
+
+  function escapeHtml(html) {
+    const div = document.createElement('div');
+    div.textContent = html;
+    return div.innerHTML;
+  }
+
+  const alert = Object.assign(document.createElement('sl-alert'), {
+    variant,
+    closable: true,
+    duration,
+    innerHTML: `
+      ${escapeHtml(message)}
+    `,
+  });
+
+  document.body.append(alert);
+
+  return alert.toast();
+};
+
+
+backstage.drawer = function drawer_(html, width = '50') {
+  // console.log('@head/backstage drawer');
+
+  const drawer = document.createElement('sl-drawer');
+  drawer.label = 'Backstage';
+  drawer.style.setProperty('--size', `${width}vw`);
+
+  if (typeof html === 'string') {
+    drawer.innerHTML = `
+      ${html}
+    `;
+  // } else if (content instanceof HTMLElement) {
+  //   drawer.innerHTML = ``;
+  //   drawer.appendChild(content);
+  }
+
+  document.body.appendChild(drawer);
+
+  drawer.show();
+
+  drawer.addEventListener('sl-after-hide', () => {
+    drawer.remove();
+  });
+};
 
 
 window.postMessage({ source: SOURCE, type: 'READY', from: 'FRONTSTAGE' });

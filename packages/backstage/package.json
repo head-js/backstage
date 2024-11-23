@@ -1,6 +1,6 @@
 {
   "name": "@head/backstage",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "",
   "main": "index.js",
   "type": "module",
@@ -10,7 +10,8 @@
   "author": "shuaizhexu@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "@head/edge": "0.3.0"
+    "@head/edge": "0.3.0",
+    "@shoelace-style/shoelace": "2.5.2"
   },
   "devDependencies": {
     "@babel/core": "7.18.13",
