@@ -105,4 +105,6 @@ typings/
 
 .DS_Store
 
+.expo/
+
 public/

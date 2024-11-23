@@ -1,0 +1,19 @@
+{
+  "name": "@head/frontstage",
+  "version": "0.4.0",
+  "description": "tampermonkey frontstage.js example",
+  "author": "hbrls",
+  "license": "MIT",
+  "main": "index.js",
+  "scripts": {
+    "build": "ANALYZE=1 webpack --config=webpack.config.js"
+  },
+  "dependencies": {
+    "vanilla.js": "0.2.11"
+  },
+  "devDependencies": {
+    "webpack": "5.74.0",
+    "webpack-chain": "6.5.1",
+    "webpack-cli": "4.7.2"
+  }
+}

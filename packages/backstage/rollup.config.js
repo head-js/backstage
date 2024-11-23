@@ -10,6 +10,8 @@ export default [
   {
     input: 'src/frontstage.js',
 
+    context: 'window',
+
     external: [
       'core-js/modules/es.promise.js',
       'core-js/modules/es.regexp.exec.js',
@@ -40,7 +42,7 @@ export default [
     ],
 
     output: [
-      { file: 'crx/js/frontstage.js', format: 'iife', exports: 'none' },
+      { file: '../../crx/js/frontstage.js', format: 'iife', exports: 'none' },
     ],
   },
   {
@@ -70,7 +72,7 @@ export default [
     ],
 
     output: [
-      { file: 'crx/js/backstage.js', format: 'iife', exports: 'none' },
+      { file: '../../crx/js/backstage.js', format: 'iife', exports: 'none' },
     ],
   },
   {
@@ -100,7 +102,7 @@ export default [
     ],
 
     output: [
-      { file: 'crx/js/background.js', format: 'iife', exports: 'none' },
+      { file: '../../crx/js/background.js', format: 'iife', exports: 'none' },
     ],
   },
 ];
