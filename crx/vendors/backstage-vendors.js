@@ -262,6 +262,9 @@ var moduleMap = {
 	},
 	"./rxjs": () => {
 		return Promise.all([__webpack_require__.e("vendors-node_modules_rxjs_dist_esm5_index_js"), __webpack_require__.e("src_rxjs_js")]).then(() => (() => ((__webpack_require__(2798)))));
+	},
+	"./shoelace": () => {
+		return Promise.all([__webpack_require__.e("vendors-node_modules_shoelace-style_shoelace_dist_components_button_button_js"), __webpack_require__.e("src_shoelace_js")]).then(() => (() => ((__webpack_require__(7693)))));
 	}
 };
 var get = (module, getScope) => {

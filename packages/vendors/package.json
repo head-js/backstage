@@ -1,6 +1,6 @@
 {
   "name": "vendors",
-  "version": "0.1.0",
+  "version": "0.3.1",
   "description": "vendors",
   "main": "index.js",
   "files": [],
@@ -10,6 +10,7 @@
   "author": "hbrls",
   "license": "MIT",
   "dependencies": {
+    "@shoelace-style/shoelace": "2.5.2",
     "ajv": "6.12.6",
     "jsonata": "2.0.5",
     "rxjs": "7.5.7"

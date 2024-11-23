@@ -28,6 +28,7 @@ config.plugin('module-federation').use(ModuleFederationPlugin, [{
     './ajv': './src/ajv',
     './jsonata': './src/jsonata',
     './rxjs': './src/rxjs',
+    './shoelace': './src/shoelace',
   },
 }]);
 

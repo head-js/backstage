@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "@head/backstage",
   "description": "Starter template built with ExtensionKit.io",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "icons": {
     "128": "icons/icon.png"
   },
@@ -38,6 +38,8 @@
         "vendors/vendors-node_modules_jsonata_jsonata_js.js",
         "vendors/src_rxjs_js.js",
         "vendors/vendors-node_modules_rxjs_dist_esm5_index_js.js",
+        "vendors/src_shoelace_js.js",
+        "vendors/vendors-node_modules_shoelace-style_shoelace_dist_components_button_button_js.js",
         "js/frontstage.js"
       ],
       "matches": [ "<all_urls>" ]
