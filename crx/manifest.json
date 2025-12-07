@@ -33,11 +33,11 @@
       "resources": [
         "vendors/backstage-vendors.js",
         "vendors/src_ajv_js.js",
-        "vendors/vendors-node_modules_ajv_lib_ajv_js.js",
+        "vendors/vendors-node_modules_pnpm_ajv_6_12_6_node_modules_ajv_lib_ajv_js.js",
         "vendors/src_jsonata_js.js",
-        "vendors/vendors-node_modules_jsonata_jsonata_js.js",
+        "vendors/vendors-node_modules_pnpm_jsonata_2_0_5_node_modules_jsonata_jsonata_js.js",
         "vendors/src_rxjs_js.js",
-        "vendors/vendors-node_modules_rxjs_dist_esm5_index_js.js",
+        "vendors/vendors-node_modules_pnpm_rxjs_7_5_7_node_modules_rxjs_dist_esm5_index_js.js",
         "js/frontstage.js",
         "css/shoelace-light.css"
       ],

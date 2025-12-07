@@ -1,11 +1,15 @@
 {
-  "name": "@head/backstage",
-  "version": "0.4.0",
+  "name": "@head/backstage-workspace",
+  "version": "0.4.1",
   "description": "",
   "main": "index.js",
   "type": "module",
   "scripts": {
   },
   "author": "shuaizhexu@gmail.com",
-  "license": "MIT"
+  "license": "MIT",
+  "packageManager": "pnpm@9.12.3",
+  "workspaces": [
+    "packages/*"
+  ]
 }
