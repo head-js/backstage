@@ -153,7 +153,7 @@ var __backstagevendors__;
 /******/ 	
 /******/ 	/* webpack/runtime/publicPath */
 /******/ 	(() => {
-/******/ 		__webpack_require__.p = "chrome-extension://elagegodfhfilllnhpmnbmeokdimoeda/vendors/";
+/******/ 		__webpack_require__.p = "chrome-extension://ankfhdagelnfgkgnldjldgjimnlhhalm/vendors/";
 /******/ 	})();
 /******/ 	
 /******/ 	/* webpack/runtime/jsonp chunk loading */
