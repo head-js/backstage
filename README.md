@@ -13,6 +13,9 @@ backstage.route('GET', '/api/ping', (ctx, next) => {
   ctx.body = { code: 0, message: 'pong' };
   next();
 });
+
+// Tab 2: Can call self
+const res = await backstage.verb('GET', '/api/ping');
 ```
 
 ```mermaid

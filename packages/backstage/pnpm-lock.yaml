@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@head/edge':
-        specifier: 0.3.0
-        version: 0.3.0
+        specifier: 0.4.0
+        version: 0.4.0
       '@shoelace-style/shoelace':
         specifier: 2.5.2
         version: 2.5.2
@@ -679,8 +679,8 @@ packages:
   '@head.js/babel-plugin-console@0.1.0':
     resolution: {integrity: sha512-AEp9u91Qn9tM9N2WCFdFWCIx6z4kBnhtiS4FWr1uIl8yS9CAe7DCF2EKZa7U4JsKf7H7BW3qnrFbfdcGcumzcw==}
 
-  '@head/edge@0.3.0':
-    resolution: {integrity: sha512-OhFYyAD4pNtG1FFiAJt917Y0bz3L2GYzRzWJDwfZOycIJkCiADulwRdLkD9e48fBENTHeceujiFQWjW+tpQ/ng==}
+  '@head/edge@0.4.0':
+    resolution: {integrity: sha512-8U/bbBk2t5uoJsQ09EntHD+1BbpLG87EYezcZVNSBDgX0cvDft9mpGiGwDjvusJBiIvU511QwZOxRZ5xfnZGug==}
 
   '@humanwhocodes/config-array@0.13.0':
     resolution: {integrity: sha512-DZLEEqFWQFiyK6h5YIeynKx7JlvCYWL0cImfSRXZ9l4Sg2efkFGTuFf6vzXjK1cq6IYkU+Eg/JizXw+TD2vRNw==}
@@ -2885,7 +2885,7 @@ snapshots:
 
   '@head.js/babel-plugin-console@0.1.0': {}
 
-  '@head/edge@0.3.0':
+  '@head/edge@0.4.0':
     dependencies:
       delegates: 1.0.0
 

@@ -49,7 +49,7 @@ config.optimization.set('minimize', false);
 
 config.plugin('module-federation').use(ModuleFederationPlugin, [{
   remotes: {
-    'backstage': '__backstagevendors__@chrome-extension://elagegodfhfilllnhpmnbmeokdimoeda/vendors/backstage-vendors.js',
+    'backstage': '__backstagevendors__@chrome-extension://extension-id-not-required/vendors/backstage-vendors.js',
   },
 }]);
 

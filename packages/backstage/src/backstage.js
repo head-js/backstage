@@ -3,10 +3,6 @@ import requirejs from './utils/requirejs';
 import Callback from './utils/callback';
 
 
-requirejs('vendors/backstage-vendors.js');
-requirejs('js/frontstage.js');
-
-
 const $callback = new Callback();
 
 
@@ -82,3 +78,14 @@ chrome.runtime.onMessage.addListener((message, sender, respond) => {
 
   return true;
 });
+
+
+async function initBackstage() {
+  await requirejs('vendors/backstage-vendors.js');
+  // console.debug('backstage-vendors.js loaded');
+
+  await requirejs('js/frontstage.js');
+  // console.debug('frontstage.js loaded');
+}
+
+initBackstage();

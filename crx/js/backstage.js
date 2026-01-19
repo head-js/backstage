@@ -4,11 +4,20 @@
   const SOURCE = '@head/backstage'; // eslint-disable-line import/prefer-default-export
 
   function requirejs(src) {
-    const s = document.createElement('script');
-    s.src = chrome.runtime.getURL(src);
-    // s.type = 'module';
-    s.onload = () => s.remove();
-    (document.head || document.documentElement).append(s);
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = chrome.runtime.getURL(src);
+      // s.type = 'module';
+      s.onload = () => {
+        s.remove();
+        resolve();
+      };
+      s.onerror = () => {
+        s.remove();
+        reject(new Error("Failed to load script: ".concat(src)));
+      };
+      (document.head || document.documentElement).append(s);
+    });
   }
 
   function seq() {
@@ -42,8 +51,6 @@
     };
   }
 
-  requirejs('vendors/backstage-vendors.js');
-  requirejs('js/frontstage.js');
   const $callback = new Callback();
   function callFrontstage(call) {
     return $callback(id => {
@@ -149,5 +156,13 @@
     }
     return true;
   });
+  async function initBackstage() {
+    await requirejs('vendors/backstage-vendors.js');
+    // console.debug('backstage-vendors.js loaded');
+
+    await requirejs('js/frontstage.js');
+    // console.debug('frontstage.js loaded');
+  }
+  initBackstage();
 
 })();

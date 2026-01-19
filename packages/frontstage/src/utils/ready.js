@@ -7,15 +7,15 @@ async function importFromBackstageVendors(vendors) {
     const v = vendors[i];
     switch (v) {
       case 'ajv':
-        const { default: ajv } = await import('backstage/ajv');
+        const { default: ajv } = (await __backstagevendors__.get('./ajv'))();
         loaded.push(ajv);
         break;
       case 'jsonata':
-        const { default: jsonata } = await import('backstage/jsonata');
+        const { default: jsonata } = (await __backstagevendors__.get('./jsonata'))();
         loaded.push(jsonata);
         break;
       case 'rxjs':
-        const { default: rxjs } = await import('backstage/rxjs');
+        const { default: rxjs } = (await __backstagevendors__.get('./rxjs'))();
         loaded.push(rxjs);
         break;
       default:
@@ -29,17 +29,17 @@ async function importFromBackstageVendors(vendors) {
 
 
 export default async function $ready(fn, vendors) {
-  const loaded = await importFromBackstageVendors(vendors);
-
   if (window.backstage && window.backstage.route) {
+    const loaded = await importFromBackstageVendors(vendors);
     fn(...loaded);
   } else {
-    window.addEventListener('message', ({ /* type, source, origin */ data }) => {
+    window.addEventListener('message', async ({ /* type, source, origin */ data }) => {
       if (data.source !== SOURCE) {
         return false;
       }
 
       if (data.type === 'READY') {
+        const loaded = await importFromBackstageVendors(vendors);
         fn(...loaded);
       }
     });
