@@ -26,7 +26,10 @@ type apiMatch struct {
 var apiRoutes = []apiRoute{
 	{method: "GET", pattern: "/repos", matcher: urlpath.New("/repos")},
 	{method: "POST", pattern: "/repos", matcher: urlpath.New("/repos")},
-	{method: "GET", pattern: "/repos/:repoId", matcher: urlpath.New("/repos/:repoId")},
+	{method: "GET", pattern: "/repos/:username/:repoName", matcher: urlpath.New("/repos/:username/:repoName")},
+	{method: "GET", pattern: "/repos/:username/:repoName/issues", matcher: urlpath.New("/repos/:username/:repoName/issues")},
+	{method: "GET", pattern: "/repos/:username/:repoName/milestones", matcher: urlpath.New("/repos/:username/:repoName/milestones")},
+	{method: "GET", pattern: "/repos/:username/:repoName/milestones/:milestonePrefix/issues", matcher: urlpath.New("/repos/:username/:repoName/milestones/:milestonePrefix/issues")},
 	{method: "GET", pattern: "/version", matcher: urlpath.New("/version")},
 	{method: "GET", pattern: "/users/:username/repos", matcher: urlpath.New("/users/:username/repos")},
 }
@@ -118,8 +121,22 @@ func executeHandler(adapter *gitea.Adapter, path string, match apiMatch) (interf
 		if match.method == "POST" {
 			return nil, fmt.Errorf("POST /repos requires --name and --description flags")
 		}
-	case "/repos/:repoId":
-		return map[string]string{"repoId": match.params["repoId"]}, nil
+	case "/repos/:username/:repoName":
+		if match.method == "GET" {
+			return adapter.GetRepo(match.params["username"], match.params["repoName"])
+		}
+	case "/repos/:username/:repoName/issues":
+		if match.method == "GET" {
+			return adapter.ListRepoIssues(match.params["username"], match.params["repoName"])
+		}
+	case "/repos/:username/:repoName/milestones":
+		if match.method == "GET" {
+			return adapter.ListRepoMilestones(match.params["username"], match.params["repoName"])
+		}
+	case "/repos/:username/:repoName/milestones/:milestonePrefix/issues":
+		if match.method == "GET" {
+			return adapter.ListIssuesByMilestonePrefix(match.params["username"], match.params["repoName"], match.params["milestonePrefix"])
+		}
 	case "/version":
 		if match.method == "GET" {
 			return adapter.GetGiteaVersion()
