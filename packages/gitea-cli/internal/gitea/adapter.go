@@ -37,11 +37,12 @@ func (a *Adapter) GetGiteaVersion() (string, error) {
 
 // ListRepos 列出所有仓库 (GET /repos)
 func (a *Adapter) ListRepos() ([]*gitea.Repository, error) {
-	repos, _, err := a.client.ListMyRepos(gitea.ListReposOptions{
-		ListOptions: gitea.ListOptions{
-			Page:     1,
-			PageSize: 100,
-		},
-	})
+	repos, _, err := a.client.SearchRepos(gitea.SearchRepoOptions{})
+	return repos, err
+}
+
+// ListUserRepos 列出用户的所有仓库 (GET /users/{username}/repos)
+func (a *Adapter) ListUserRepos(username string) ([]*gitea.Repository, error) {
+	repos, _, err := a.client.ListUserRepos(username, gitea.ListReposOptions{})
 	return repos, err
 }

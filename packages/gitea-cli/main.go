@@ -2,22 +2,15 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"os"
 
-	"com.lisitede.backstage.gitea/internal/gitea"
+	"com.lisitede.backstage.gitea/cmd"
 )
 
 func main() {
-	adapter, err := gitea.NewAdapter()
-	if err != nil {
-		log.Fatal(err)
+	// Execute CLI
+	if err := cmd.Execute(); err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
 	}
-
-	giteaVersion, err := adapter.GetGiteaVersion()
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fmt.Printf("Gitea Version: %s\n", giteaVersion)
-	fmt.Printf("CLI Version: %s\n", cliVersion)
 }
