@@ -6,32 +6,21 @@ import (
 	"os"
 	"strings"
 
-	"com.lisitede.backstage.gitea/internal/gitea"
+	"code.gitea.io/sdk/gitea"
+	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"github.com/spf13/cobra"
 	"github.com/ucarion/urlpath"
 )
 
-type apiRoute struct {
-	method  string
-	pattern string
-	matcher urlpath.Path
-}
-
-type apiMatch struct {
-	method  string
-	pattern string
-	params  map[string]string
-}
-
-var apiRoutes = []apiRoute{
-	{method: "GET", pattern: "/repos", matcher: urlpath.New("/repos")},
-	{method: "POST", pattern: "/repos", matcher: urlpath.New("/repos")},
-	{method: "GET", pattern: "/repos/:username/:repoName", matcher: urlpath.New("/repos/:username/:repoName")},
-	{method: "GET", pattern: "/repos/:username/:repoName/issues", matcher: urlpath.New("/repos/:username/:repoName/issues")},
-	{method: "GET", pattern: "/repos/:username/:repoName/milestones", matcher: urlpath.New("/repos/:username/:repoName/milestones")},
-	{method: "GET", pattern: "/repos/:username/:repoName/milestones/:milestonePrefix/issues", matcher: urlpath.New("/repos/:username/:repoName/milestones/:milestonePrefix/issues")},
-	{method: "GET", pattern: "/version", matcher: urlpath.New("/version")},
-	{method: "GET", pattern: "/users/:username/repos", matcher: urlpath.New("/users/:username/repos")},
+var apiRoutes = []Route{
+	{Method: "GET", Pattern: "/repos", Matcher: urlpath.New("/repos")},
+	{Method: "POST", Pattern: "/repos", Matcher: urlpath.New("/repos")},
+	{Method: "GET", Pattern: "/repos/:username/:repoName", Matcher: urlpath.New("/repos/:username/:repoName")},
+	{Method: "GET", Pattern: "/repos/:username/:repoName/issues", Matcher: urlpath.New("/repos/:username/:repoName/issues")},
+	{Method: "GET", Pattern: "/repos/:username/:repoName/milestones", Matcher: urlpath.New("/repos/:username/:repoName/milestones")},
+	{Method: "GET", Pattern: "/repos/:username/:repoName/milestones/:milestonePrefix/issues", Matcher: urlpath.New("/repos/:username/:repoName/milestones/:milestonePrefix/issues")},
+	{Method: "GET", Pattern: "/version", Matcher: urlpath.New("/version")},
+	{Method: "GET", Pattern: "/users/:username/repos", Matcher: urlpath.New("/users/:username/repos")},
 }
 
 // apiCmd 通用 API 命令
@@ -45,7 +34,7 @@ Examples:
   backstage-gitea api POST /repos`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		adapter, err := gitea.NewAdapter()
+		adapter, err := internalGitea.NewAdapter()
 		if err != nil {
 			return outputError(err)
 		}
@@ -53,8 +42,14 @@ Examples:
 		method := strings.ToUpper(args[0])
 		path := args[1]
 
-		// 路由分发
-		result, err := routeAPI(adapter, path, method)
+		// 路由匹配
+		matches, err := match(apiRoutes, method, path)
+		if err != nil {
+			return outputError(err)
+		}
+
+		// 执行 handler
+		result, err := executeHandler(adapter, path, matches)
 		if err != nil {
 			return outputError(err)
 		}
@@ -70,83 +65,42 @@ Examples:
 	},
 }
 
-// routeAPI 先进行纯路径匹配，再分发到 adapter 方法
-func routeAPI(adapter *gitea.Adapter, path, method string) (interface{}, error) {
-	match, err := matchAPIPath(method, path)
-	if err != nil {
-		return nil, err
-	}
-
-	return executeHandler(adapter, path, match)
-}
-
-func matchAPIPath(method, path string) (apiMatch, error) {
-	normalizedMethod := strings.ToUpper(method)
-	if !strings.HasPrefix(path, "/") {
-		return apiMatch{}, fmt.Errorf("path must start with /: %s", path)
-	}
-
-	for _, route := range apiRoutes {
-		if route.method != normalizedMethod {
-			continue
-		}
-
-		match, ok := route.matcher.Match(path)
-		if !ok {
-			continue
-		}
-
-		params := match.Params
-		if params == nil {
-			params = map[string]string{}
-		}
-
-		return apiMatch{
-			method:  normalizedMethod,
-			pattern: route.pattern,
-			params:  params,
-		}, nil
-	}
-
-	return apiMatch{}, fmt.Errorf("unsupported API: %s %s", normalizedMethod, path)
-}
-
 // executeHandler 根据匹配到的路由模板执行对应的 adapter 方法
-func executeHandler(adapter *gitea.Adapter, path string, match apiMatch) (interface{}, error) {
-	switch match.pattern {
+func executeHandler(adapter *internalGitea.Adapter, path string, matches MatchResult) (interface{}, error) {
+	switch matches.Pattern {
 	case "/repos":
-		if match.method == "GET" {
+		if matches.Method == "GET" {
 			return adapter.ListRepos()
 		}
-		if match.method == "POST" {
+		if matches.Method == "POST" {
 			return nil, fmt.Errorf("POST /repos requires --name and --description flags")
 		}
 	case "/repos/:username/:repoName":
-		if match.method == "GET" {
-			return adapter.GetRepo(match.params["username"], match.params["repoName"])
+		if matches.Method == "GET" {
+			return adapter.GetRepo(matches.Params["username"], matches.Params["repoName"])
 		}
 	case "/repos/:username/:repoName/issues":
-		if match.method == "GET" {
-			return adapter.ListRepoIssues(match.params["username"], match.params["repoName"])
+		if matches.Method == "GET" {
+			return adapter.ListRepoIssues(matches.Params["username"], matches.Params["repoName"])
 		}
 	case "/repos/:username/:repoName/milestones":
-		if match.method == "GET" {
-			return adapter.ListRepoMilestones(match.params["username"], match.params["repoName"])
+		if matches.Method == "GET" {
+			return adapter.ListRepoMilestones(matches.Params["username"], matches.Params["repoName"])
 		}
 	case "/repos/:username/:repoName/milestones/:milestonePrefix/issues":
-		if match.method == "GET" {
-			return adapter.ListIssuesByMilestonePrefix(match.params["username"], match.params["repoName"], match.params["milestonePrefix"])
+		if matches.Method == "GET" {
+			return adapter.ListIssuesByMilestonePrefix(matches.Params["username"], matches.Params["repoName"], matches.Params["milestonePrefix"])
 		}
 	case "/version":
-		if match.method == "GET" {
+		if matches.Method == "GET" {
 			return adapter.GetGiteaVersion()
 		}
 	case "/users/:username/repos":
-		if match.method == "GET" {
-			return adapter.ListUserRepos(match.params["username"])
+		if matches.Method == "GET" {
+			return listRepoOfUser(matches.Params["username"])
 		}
 	}
-	return nil, fmt.Errorf("unsupported API: %s %s", match.method, path)
+	return nil, fmt.Errorf("unsupported API: %s %s", matches.Method, path)
 }
 
 // printResult 简单 JSON 输出
@@ -167,3 +121,26 @@ func printResult(data interface{}) {
 func init() {
 	rootCmd.AddCommand(apiCmd)
 }
+
+/* ==== 下列方法被 api 和 plan 命令共享使用 ==== */
+
+// listRepoOfUser 获取指定用户下的所有仓库列表
+func listRepoOfUser(username string) ([]*gitea.Repository, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	return adapter.ListUserRepos(username)
+}
+
+// showRepo 获取指定用户下的单个仓库
+// username: Gitea 用户名（owner）
+// repoName: 仓库名称
+func showRepo(username, repoName string) (*gitea.Repository, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	return adapter.GetRepo(username, repoName)
+}
+
