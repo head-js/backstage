@@ -97,6 +97,21 @@ func (a *Adapter) CreateMilestone(owner, repo, title string) (*gitea.Milestone, 
 	return milestone, err
 }
 
+// ListLabelOfRepo 列出仓库 Label 列表 (GET /repos/:owner/:repoName/labels)
+func (a *Adapter) ListLabelOfRepo(owner, repo string) ([]*gitea.Label, error) {
+	labels, _, err := a.client.ListRepoLabels(owner, repo, gitea.ListLabelsOptions{})
+	return labels, err
+}
+
+// CreateLabel 创建 Label (POST /repos/:owner/:repoName/labels)
+func (a *Adapter) CreateLabel(owner, repo, name, color string) (*gitea.Label, error) {
+	label, _, err := a.client.CreateLabel(owner, repo, gitea.CreateLabelOption{
+		Name:  name,
+		Color: color,
+	})
+	return label, err
+}
+
 // CreateIssue 创建 Issue
 // milestoneId: Milestone 的数字 ID（可选，传入空字符串表示不关联）
 func (a *Adapter) CreateIssue(owner, repo, title string, milestoneId string) (*gitea.Issue, error) {

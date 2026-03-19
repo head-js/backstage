@@ -16,21 +16,22 @@ type GiteaExtra struct {
 type Plan struct {
 	Id     string     `json:"id"`
 	Name   string     `json:"name"`
-	Gitea  GiteaExtra `json:"gitea"`
 	Phases []Phase    `json:"phases"`
+	Gitea  GiteaExtra `json:"gitea"`
 }
 
 // Phase 阶段（对应 Gitea Milestone）
 type Phase struct {
-	Id    string     `json:"id"`    // Phase-xx 格式
-	Name  string     `json:"name"`  // 阶段名称
-	Tasks []Task     `json:"tasks"` // 任务列表
-	Gitea GiteaExtra `json:"gitea"` // Gitea Milestone 信息
+	Id    string     `json:"id"`              // Phase-xx 格式
+	Name  string     `json:"name"`            // 阶段名称
+	Tasks []Task     `json:"tasks,omitempty"` // 任务列表
+	Gitea GiteaExtra `json:"gitea"`           // Gitea Milestone 信息
 }
 
 // Task 任务（对应 Gitea Issue）
 type Task struct {
-	Id    string     `json:"id"`    // TASK-xxxx 格式
-	Name  string     `json:"name"`  // 任务标题
-	Gitea GiteaExtra `json:"gitea"` // Gitea Issue 信息
+	Id      string     `json:"id"`
+	Name    string     `json:"name"`
+	Context string     `json:"context"`
+	Gitea   GiteaExtra `json:"gitea"`
 }

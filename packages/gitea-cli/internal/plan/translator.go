@@ -148,7 +148,11 @@ func (pt *PlanTranslator) TranslateMilestone2Phase(m *gitea.Milestone) Phase {
 // TranslateMilestoneList2PhaseList 将 Gitea Milestones 列表转换为 Phases 列表
 // 每个 Phase 只包含 id 和 title
 func (pt *PlanTranslator) TranslateMilestoneList2PhaseList(milestones []*gitea.Milestone) []Phase {
-	var phases []Phase
+	if milestones == nil {
+		return []Phase{}
+	}
+
+	phases := []Phase{}
 
 	for _, m := range milestones {
 		if m == nil {
@@ -176,8 +180,9 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 	}
 
 	return Task{
-		Id:   taskId,
-		Name: issue.Title,
+		Id:      taskId,
+		Name:    issue.Title,
+		Context: issue.Body,
 		Gitea: GiteaExtra{
 			Type:      "ISSUE",
 			Id:        issue.ID,
@@ -215,9 +220,10 @@ func ExtractTaskId(issueTitle string) (string, string, error) {
 	regex := regexp.MustCompile(pattern)
 	matches := regex.FindStringSubmatch(issueTitle)
 
-	if len(matches) < 3 {
+	if len(matches) < 2 {
 		return "", "", fmt.Errorf("issue title must start with 'TASK-{id}': %s", issueTitle)
 	}
 
-	return matches[1], matches[2], nil
+	taskId := "TASK-" + matches[1]
+	return taskId, matches[1], nil
 }

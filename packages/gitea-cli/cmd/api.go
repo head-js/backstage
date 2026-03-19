@@ -9,20 +9,10 @@ import (
 	"code.gitea.io/sdk/gitea"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"github.com/spf13/cobra"
-	"github.com/ucarion/urlpath"
 )
 
-var apiRoutes = []Route{
-	{Method: "GET", Pattern: "/repos", Matcher: urlpath.New("/repos")},
-	{Method: "POST", Pattern: "/repos", Matcher: urlpath.New("/repos")},
-	{Method: "GET", Pattern: "/repos/:username/:repoName", Matcher: urlpath.New("/repos/:username/:repoName")},
-	{Method: "GET", Pattern: "/repos/:username/:repoName/issues", Matcher: urlpath.New("/repos/:username/:repoName/issues")},
-	{Method: "GET", Pattern: "/repos/:username/:repoName/milestones", Matcher: urlpath.New("/repos/:username/:repoName/milestones")},
-	{Method: "GET", Pattern: "/repos/:username/:repoName/milestones/:milestonePrefix/issues", Matcher: urlpath.New("/repos/:username/:repoName/milestones/:milestonePrefix/issues")},
-	{Method: "GET", Pattern: "/version", Matcher: urlpath.New("/version")},
-	{Method: "GET", Pattern: "/users/:username/repos", Matcher: urlpath.New("/users/:username/repos")},
-	{Method: "POST", Pattern: "/repos/:owner/:repoName/transfer", Matcher: urlpath.New("/repos/:owner/:repoName/transfer")},
-}
+// apiRouter API 命令路由管理器
+var apiRouter Router
 
 // createRepoFlags 用于 POST /repos 的 flags
 var createRepoFlags struct {
@@ -32,6 +22,11 @@ var createRepoFlags struct {
 // transferRepoFlags 用于 POST /repos/:owner/:repoName/transfer 的 flags
 var transferRepoFlags struct {
 	newOwner string
+}
+
+// createLabelFlags 用于 POST /repos/:owner/:repoName/labels 的 flags
+var createLabelFlags struct {
+	color string
 }
 
 // apiCmd 通用 API 命令
@@ -45,22 +40,23 @@ Examples:
   backstage-gitea api POST /repos`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		adapter, err := internalGitea.NewAdapter()
-		if err != nil {
-			return outputError(err)
-		}
-
 		method := strings.ToUpper(args[0])
 		path := args[1]
 
-		// 路由匹配
-		matches, err := match(apiRoutes, method, path)
-		if err != nil {
-			return outputError(err)
+		// 构建 args 映射
+		argsMap := map[string]string{}
+		if createRepoFlags.name != "" {
+			argsMap["name"] = createRepoFlags.name
+		}
+		if transferRepoFlags.newOwner != "" {
+			argsMap["newOwner"] = transferRepoFlags.newOwner
+		}
+		if createLabelFlags.color != "" {
+			argsMap["color"] = createLabelFlags.color
 		}
 
-		// 执行 handler
-		result, err := executeHandler(adapter, path, matches)
+		// 调用路由
+		result, err := apiRouter.Invoke(method, path, argsMap)
 		if err != nil {
 			return outputError(err)
 		}
@@ -74,44 +70,6 @@ Examples:
 		printResult(result)
 		return nil
 	},
-}
-
-// executeHandler 根据匹配到的路由模板执行对应的 adapter 方法
-func executeHandler(adapter *internalGitea.Adapter, path string, matches MatchResult) (interface{}, error) {
-	switch matches.Pattern {
-	case "/repos":
-		if matches.Method == "GET" {
-			return adapter.ListRepos()
-		}
-	case "/repos/:username/:repoName":
-		if matches.Method == "GET" {
-			return adapter.GetRepo(matches.Params["username"], matches.Params["repoName"])
-		}
-	case "/repos/:username/:repoName/issues":
-		if matches.Method == "GET" {
-			return adapter.ListRepoIssues(matches.Params["username"], matches.Params["repoName"])
-		}
-	case "/repos/:username/:repoName/milestones":
-		if matches.Method == "GET" {
-			return adapter.ListRepoMilestones(matches.Params["username"], matches.Params["repoName"])
-		}
-	case "/version":
-		if matches.Method == "GET" {
-			return adapter.GetGiteaVersion()
-		}
-	case "/users/:username/repos":
-		if matches.Method == "GET" {
-			return listRepoOfUser(matches.Params["username"])
-		}
-	case "/repos/:owner/:repoName/transfer":
-		if matches.Method == "POST" {
-			if transferRepoFlags.newOwner == "" {
-				return nil, fmt.Errorf("POST /repos/:owner/:repoName/transfer requires --new-owner flag")
-			}
-			return adapter.TransferRepo(matches.Params["owner"], matches.Params["repoName"], transferRepoFlags.newOwner)
-		}
-	}
-	return nil, fmt.Errorf("unsupported API: %s %s", matches.Method, path)
 }
 
 // printResult 简单 JSON 输出
@@ -130,6 +88,79 @@ func printResult(data interface{}) {
 }
 
 func init() {
+	// 注册 api 路由
+	apiRouter.Verb("GET", "/repos", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.ListRepos()
+	})
+
+	apiRouter.Verb("POST", "/repos", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["name"] == "" {
+			return nil, fmt.Errorf("POST /repos requires --name flag")
+		}
+		// args["name"] 是 repo 名称，需要创建仓库
+		// 这里需要确定 owner，暂时使用默认值
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.CreateRepo(args["name"])
+	})
+
+	apiRouter.Verb("GET", "/repos/:username/:repoName", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.GetRepo(params["username"], params["repoName"])
+	})
+
+	apiRouter.Verb("GET", "/repos/:owner/:repoName/labels", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.ListLabelOfRepo(params["owner"], params["repoName"])
+	})
+
+	apiRouter.Verb("POST", "/repos/:owner/:repoName/labels", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.CreateLabel(params["owner"], params["repoName"], args["name"], args["color"])
+	})
+
+	apiRouter.Verb("GET", "/repos/:username/:repoName/milestones", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalGitea.ListMilestoneOfRepo(params["username"], params["repoName"])
+	})
+
+	apiRouter.Verb("GET", "/version", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.GetGiteaVersion()
+	})
+
+	apiRouter.Verb("GET", "/users/:username/repos", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return listRepoOfUser(params["username"])
+	})
+
+	apiRouter.Verb("POST", "/repos/:owner/:repoName/transfer", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["newOwner"] == "" {
+			return nil, fmt.Errorf("POST /repos/:owner/:repoName/transfer requires --new-owner flag")
+		}
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.TransferRepo(params["owner"], params["repoName"], args["newOwner"])
+	})
+
 	rootCmd.AddCommand(apiCmd)
 
 	// 为 POST /repos 添加 flags
@@ -137,17 +168,20 @@ func init() {
 
 	// 为 POST /repos/:owner/:repoName/transfer 添加 flags
 	apiCmd.Flags().StringVar(&transferRepoFlags.newOwner, "new-owner", "", "New owner for repository transfer")
+
+	// 为 POST /repos/:owner/:repoName/labels 添加 flags
+	apiCmd.Flags().StringVar(&createLabelFlags.color, "color", "", "Label color (hex) for POST /repos/:owner/:repoName/labels")
 }
 
 /* ==== 下列方法被 api 和 plan 命令共享使用 ==== */
 
 // listRepoOfUser 获取指定用户下的所有仓库列表
-func listRepoOfUser(username string) ([]*gitea.Repository, error) {
+func listRepoOfUser(owner string) ([]*gitea.Repository, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
 		return nil, err
 	}
-	return adapter.ListUserRepos(username)
+	return adapter.ListUserRepos(owner)
 }
 
 // showRepo 获取指定用户下的单个仓库
@@ -159,37 +193,6 @@ func showRepo(username, repoName string) (*gitea.Repository, error) {
 		return nil, err
 	}
 	return adapter.GetRepo(username, repoName)
-}
-
-// createRepo 创建仓库
-// owner: 目标 owner（仓库创建后转移到此用户）
-// repoName: 仓库名称
-func createRepo(owner string, repoName string) (*gitea.Repository, error) {
-	adapter, err := internalGitea.NewAdapter()
-	if err != nil {
-		return nil, err
-	}
-
-	// 先用系统默认 owner 创建仓库
-	_, err = adapter.CreateRepo(repoName)
-	if err != nil {
-		return nil, err
-	}
-
-	// 立刻把仓库转移给目标 owner
-	return transferRepo("backstage", repoName, owner)
-}
-
-// transferRepo 转移仓库
-// oldOwner: 原仓库所有者
-// repoName: 仓库名称
-// newOwner: 新仓库所有者
-func transferRepo(oldOwner, repoName, newOwner string) (*gitea.Repository, error) {
-	adapter, err := internalGitea.NewAdapter()
-	if err != nil {
-		return nil, err
-	}
-	return adapter.TransferRepo(oldOwner, repoName, newOwner)
 }
 
 // createMilestone 创建里程碑

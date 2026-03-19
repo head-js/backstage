@@ -3,6 +3,7 @@ package plan
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	giteaApi "com.lisitede.backstage.gitea/internal/gitea"
@@ -67,7 +68,6 @@ func GenNextTaskId(appName, planName, phaseId string) (string, error) {
 	return fmt.Sprintf("TASK-%s", nextId), nil
 }
 
-
 // GenNextPhaseId 生成下一个 Phase 编号
 // appName: 应用名称
 // planName: Plan 名称
@@ -105,9 +105,29 @@ func GenNextPhaseId(appName, planName string) (string, error) {
 	return fmt.Sprintf("PHASE-%s", nextId), nil
 }
 
-// genNextId 私有方法，算法重用
-// 规则：取最大 ID 的百位，直接跳到下一个百位（如 110 → 200，225 → 300）
+// genNextId 私有方法
 func genNextId(existIds []string) (string, error) {
+	if len(existIds) == 0 {
+		return "100", nil
+	}
+
+	lastNum := existIds[len(existIds)-1]
+	lastInt, err := strconv.Atoi(lastNum)
+	if err != nil {
+		return "", fmt.Errorf("invalid task id: %s", lastNum)
+	}
+
+	next := lastInt + 1
+	if next >= 900 {
+		return "", fmt.Errorf("no available task id: reached 900")
+	}
+
+	return fmt.Sprintf("%03d", next), nil
+}
+
+// genReserveId 私有方法
+// 规则：取最大 ID 的百位，直接跳到下一个百位（如 110 → 200，225 → 300）
+func genReserveId(existIds []string) (string, error) {
 	if len(existIds) == 0 {
 		return "100", nil
 	}

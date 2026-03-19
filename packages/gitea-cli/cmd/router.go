@@ -2,41 +2,55 @@ package cmd
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/ucarion/urlpath"
 )
 
-// Route 定义路由结构（通用）
-type Route struct {
-	Method  string
-	Pattern string
-	Matcher urlpath.Path
+// Router 路由管理器
+type Router struct {
+	routes []registeredRoute
 }
 
-// MatchResult 路由匹配结果（通用）
-type MatchResult struct {
-	Method  string
-	Pattern string
-	Params  map[string]string
+// registeredRoute 已注册的路由
+type registeredRoute struct {
+	Method   string
+	Pattern  string
+	Matcher  urlpath.Path
+	Callback Callback
 }
 
-// match 通用路由匹配方法
-// routes: 路由列表
+// Callback 路由处理函数
+// method: HTTP 方法，如 "LIST", "POST", "GET"
+// pattern: 路由模式，如 "/apps/:appName/plans"
+// pathname: 实际请求路径，如 "/apps/flowablex/plans"
+// params: 解析出的路径参数，如 { appName: "flowablex" }
+// args: 命令行传入的 flags 参数
+type Callback func(method, pattern, pathname string, params map[string]string, args map[string]string) (interface{}, error)
+
+// Verb 注册路由
 // method: HTTP 方法
-// path: 请求路径
-func match(routes []Route, method, path string) (MatchResult, error) {
-	normalizedMethod := strings.ToUpper(method)
-	if !strings.HasPrefix(path, "/") {
-		return MatchResult{}, fmt.Errorf("path must start with /: %s", path)
-	}
+// pattern: 路由模式
+// callback: 处理函数
+func (r *Router) Verb(method, pattern string, callback Callback) {
+	r.routes = append(r.routes, registeredRoute{
+		Method:   method,
+		Pattern:  pattern,
+		Matcher:  urlpath.New(pattern),
+		Callback: callback,
+	})
+}
 
-	for _, route := range routes {
-		if route.Method != normalizedMethod {
+// Invoke 调用路由
+// method: HTTP 方法
+// pathname: 请求路径
+// args: 命令行传入的 flags 参数
+func (r *Router) Invoke(method, pathname string, args map[string]string) (interface{}, error) {
+	for _, route := range r.routes {
+		if route.Method != method {
 			continue
 		}
 
-		m, ok := route.Matcher.Match(path)
+		m, ok := route.Matcher.Match(pathname)
 		if !ok {
 			continue
 		}
@@ -46,12 +60,8 @@ func match(routes []Route, method, path string) (MatchResult, error) {
 			params = map[string]string{}
 		}
 
-		return MatchResult{
-			Method:  normalizedMethod,
-			Pattern: route.Pattern,
-			Params:  params,
-		}, nil
+		return route.Callback(method, route.Pattern, pathname, params, args)
 	}
 
-	return MatchResult{}, fmt.Errorf("unsupported path: %s %s", normalizedMethod, path)
+	return nil, fmt.Errorf("unsupported path: %s %s", method, pathname)
 }

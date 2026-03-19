@@ -36,5 +36,6 @@ func outputError(err error) error {
 	} else {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 	}
-	return err
+	// 返回 nil 避免 cobra 再打印一次相同的错误
+	return nil
 }

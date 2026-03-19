@@ -1,5 +1,5 @@
 # Makefile
-.PHONY: build build-darwin build-linux build-windows clean test version
+.PHONY: build build-mac build-linux build-windows clean test version
 
 DIST := .dist
 VERSION := 0.0.1
@@ -17,10 +17,9 @@ build:
 	go build -ldflags "$(LDFLAGS)" -o $(DIST)/backstage-gitea .
 
 # 构建 macOS 版本
-build-darwin:
+build-mac:
 	mkdir -p $(DIST)
-	GOOS=darwin GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/backstage-gitea-darwin-amd64 .
-	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/backstage-gitea-darwin-arm64 .
+	GOOS=darwin GOARCH=arm64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/backstage-gitea .
 
 # 构建 Linux 版本
 build-linux:
@@ -33,7 +32,7 @@ build-windows:
 	GOOS=windows GOARCH=amd64 go build -ldflags "$(LDFLAGS)" -o $(DIST)/backstage-gitea.exe .
 
 # 构建所有平台
-build-all: build-darwin build-linux build-windows
+build-all: build-mac build-linux build-windows
 
 # 清理构建产物
 clean:

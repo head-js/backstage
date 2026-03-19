@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-// go test -v -run TestGenNextId ./internal/plan/
-func TestGenNextId(t *testing.T) {
+// go test -v -run TestGenReserveId ./internal/plan/
+func TestGenReserveId(t *testing.T) {
 	tests := []struct {
 		name     string
 		existIds []string
@@ -88,13 +88,13 @@ func TestGenNextId(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := genNextId(tt.existIds)
+			got, err := genReserveId(tt.existIds)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("genNextId() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("genReserveId() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if got != tt.want {
-				t.Errorf("genNextId() = %v, want %v", got, tt.want)
+				t.Errorf("genReserveId() = %v, want %v", got, tt.want)
 			}
 		})
 	}
