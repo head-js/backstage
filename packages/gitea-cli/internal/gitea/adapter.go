@@ -3,7 +3,6 @@ package gitea
 import (
 	"fmt"
 	"os"
-	"strings"
 
 	"code.gitea.io/sdk/gitea"
 )
@@ -60,32 +59,57 @@ func (a *Adapter) ListRepoIssues(owner, repo string) ([]*gitea.Issue, error) {
 	return issues, err
 }
 
+func (a *Adapter) SearchRepoIssues(owner, repo string, searchOptions gitea.ListIssueOption) ([]*gitea.Issue, error) {
+	issues, _, err := a.client.ListRepoIssues(owner, repo, searchOptions)
+	return issues, err
+}
+
 // ListRepoMilestones 列出仓库 Milestone 列表 (GET /repos/:username/:repoName/milestones)
 func (a *Adapter) ListRepoMilestones(owner, repo string) ([]*gitea.Milestone, error) {
 	milestones, _, err := a.client.ListRepoMilestones(owner, repo, gitea.ListMilestoneOption{})
 	return milestones, err
 }
 
-// ListIssuesByMilestonePrefix 按 milestone 名称前缀查询 Issues
-// 流程：ListRepoMilestones → 客户端前缀过滤 → 逐个 ListRepoIssues 合并
-func (a *Adapter) ListIssuesByMilestonePrefix(owner, repo, prefix string) ([]*gitea.Issue, error) {
-	milestones, _, err := a.client.ListRepoMilestones(owner, repo, gitea.ListMilestoneOption{})
-	if err != nil {
-		return nil, err
-	}
+// CreateRepo 创建仓库
+// 以当前持有 Token 的 owner 为准
+func (a *Adapter) CreateRepo(name string) (*gitea.Repository, error) {
+	repo, _, err := a.client.CreateRepo(gitea.CreateRepoOption{
+		Name:        name,
+		Description: "",
+		Private:     false,
+	})
+	return repo, err
+}
 
-	var result []*gitea.Issue
-	for _, m := range milestones {
-		if !strings.HasPrefix(m.Title, prefix) {
-			continue
-		}
-		issues, _, err := a.client.ListRepoIssues(owner, repo, gitea.ListIssueOption{
-			Milestones: []string{m.Title},
-		})
-		if err != nil {
-			return nil, err
-		}
-		result = append(result, issues...)
+// TransferRepo 转移仓库
+func (a *Adapter) TransferRepo(oldOwner, repoName, newOwner string) (*gitea.Repository, error) {
+	repo, _, err := a.client.TransferRepo(oldOwner, repoName, gitea.TransferRepoOption{
+		NewOwner: newOwner,
+	})
+	return repo, err
+}
+
+// CreateMilestone 创建里程碑
+func (a *Adapter) CreateMilestone(owner, repo, title string) (*gitea.Milestone, error) {
+	milestone, _, err := a.client.CreateMilestone(owner, repo, gitea.CreateMilestoneOption{
+		Title: title,
+	})
+	return milestone, err
+}
+
+// CreateIssue 创建 Issue
+// milestoneId: Milestone 的数字 ID（可选，传入空字符串表示不关联）
+func (a *Adapter) CreateIssue(owner, repo, title string, milestoneId string) (*gitea.Issue, error) {
+	opts := gitea.CreateIssueOption{
+		Title: title,
 	}
-	return result, nil
+	if milestoneId != "" {
+		var id int64
+		fmt.Sscanf(milestoneId, "%d", &id)
+		if id > 0 {
+			opts.Milestone = id
+		}
+	}
+	issue, _, err := a.client.CreateIssue(owner, repo, opts)
+	return issue, err
 }

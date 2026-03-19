@@ -94,31 +94,32 @@ func extractPlanId(repoName string) (string, error) {
 	return planId, nil
 }
 
-// ExtractPhaseId 从 milestone 名称提取 Phase ID 并大写化
+// ExtractPhaseId 从 milestone 名称提取 Phase ID
 // Gitea.Milestone.Title -> Phase-02
 // Phase.Id              -> PHASE-02
-func extractPhaseId(milestoneTitle string) (string, error) {
-	pattern := `^[Pp]hase-(\d+)`
+// 返回: match[1]=PHASE-xxx, match[2]=xxx数字部分, err
+func extractPhaseId(milestoneTitle string) (string, string, error) {
+	pattern := `(?i)^phase-(\d{3})`
 	regex := regexp.MustCompile(pattern)
 	matches := regex.FindStringSubmatch(milestoneTitle)
 
 	if len(matches) < 2 {
-		return "", fmt.Errorf("milestone title must follow format 'Phase-{id}': %s", milestoneTitle)
+		return "", "", fmt.Errorf("milestone title must follow format 'Phase-{id}': %s", milestoneTitle)
 	}
 
 	id := matches[1]                          // 数字部分：02
 	phaseId := "PHASE-" + strings.ToUpper(id) // 大写化：PHASE-02
-	return phaseId, nil
+	return phaseId, id, nil
 }
 
 // ExtractPhaseId 公开版本，供外部调用
-func (pt *PlanTranslator) ExtractPhaseId(milestoneTitle string) (string, error) {
+func (pt *PlanTranslator) ExtractPhaseId(milestoneTitle string) (string, string, error) {
 	return extractPhaseId(milestoneTitle)
 }
 
 // TranslateMilestone2Phase 将单个 Gitea Milestone 转换为 Phase（只含 id 和 name）
 func (pt *PlanTranslator) TranslateMilestone2Phase(m *gitea.Milestone) Phase {
-	phaseId, err := extractPhaseId(m.Title)
+	phaseId, _, err := extractPhaseId(m.Title)
 	if err != nil {
 		fmt.Printf("Warning: invalid phase naming for milestone %s: %v\n", m.Title, err)
 		phaseId = m.Title
@@ -163,7 +164,7 @@ func (pt *PlanTranslator) TranslateMilestoneList2PhaseList(milestones []*gitea.M
 
 // TranslateIssue2Task 将单个 Gitea Issue 转换为 Task
 func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
-	taskId, err := ExtractTaskId(issue.Title)
+	taskId, _, err := ExtractTaskId(issue.Title)
 	if err != nil {
 		fmt.Printf("Warning: invalid task naming for issue %s: %v\n", issue.Title, err)
 		taskId = fmt.Sprintf("TASK-%d", issue.Index)
@@ -208,14 +209,15 @@ func (pt *PlanTranslator) TranslateIssueList2TaskList(issues []*gitea.Issue) []T
 // ExtractTaskId 从 issue 标题提取 Task ID
 // Gitea.Issue.Title -> "TASK-101: 修复权限模块 (perm/order)"
 // Task.Id            -> "TASK-101"
-func ExtractTaskId(issueTitle string) (string, error) {
-	pattern := `^(TASK-\d+)`
+// 返回: match[1]=TASK-xxx, match[2]=xxx数字部分, err
+func ExtractTaskId(issueTitle string) (string, string, error) {
+	pattern := `(?i)^task-(\d{3})`
 	regex := regexp.MustCompile(pattern)
 	matches := regex.FindStringSubmatch(issueTitle)
 
-	if len(matches) < 2 {
-		return "", fmt.Errorf("issue title must start with 'TASK-{id}': %s", issueTitle)
+	if len(matches) < 3 {
+		return "", "", fmt.Errorf("issue title must start with 'TASK-{id}': %s", issueTitle)
 	}
 
-	return matches[1], nil
+	return matches[1], matches[2], nil
 }

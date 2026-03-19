@@ -14,9 +14,17 @@ import (
 
 // planRoutes plan 命令路由列表
 var planRoutes = []Route{
-	{Method: "LIST", Pattern: "/apps/:app/plans", Matcher: urlpath.New("/apps/:app/plans")},
-	{Method: "GET", Pattern: "/apps/:app/plans/:planName", Matcher: urlpath.New("/apps/:app/plans/:planName")},
-	{Method: "LIST", Pattern: "/apps/:app/plans/:planName/phases/:phaseId/tasks", Matcher: urlpath.New("/apps/:app/plans/:planName/phases/:phaseId/tasks")},
+	{Method: "LIST", Pattern: "/apps/:appName/plans", Matcher: urlpath.New("/apps/:appName/plans")},
+	{Method: "POST", Pattern: "/apps/:appName/plans", Matcher: urlpath.New("/apps/:appName/plans")},
+	{Method: "GET", Pattern: "/apps/:appName/plans/:planName", Matcher: urlpath.New("/apps/:appName/plans/:planName")},
+	{Method: "LIST", Pattern: "/apps/:appName/plans/:planName/phases/:phase/tasks", Matcher: urlpath.New("/apps/:appName/plans/:planName/phases/:phase/tasks")},
+	{Method: "POST", Pattern: "/apps/:appName/plans/:planName/phases", Matcher: urlpath.New("/apps/:appName/plans/:planName/phases")},
+	{Method: "POST", Pattern: "/apps/:appName/plans/:planName/phases/:phase/tasks", Matcher: urlpath.New("/apps/:appName/plans/:planName/phases/:phase/tasks")},
+}
+
+// planCreateFlags 用于创建 Plan 的 flags
+var planCreateFlags struct {
+	name string
 }
 
 // planCmd 计划管理命令
@@ -26,6 +34,7 @@ var planCmd = &cobra.Command{
 	Long: `Manage plans in Gitea.
 Examples:
 	backstage-gitea plan LIST /apps/mall-view-platform/plans
+	backstage-gitea plan POST /apps/mall-view-platform/plans --name "plan-102-HttpClient-Rules"
 	backstage-gitea plan GET /apps/mall-view-platform/plans/plan-102-HttpClient-Rules`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -41,12 +50,38 @@ Examples:
 		// 执行 handler
 		var result interface{}
 		switch matches.Pattern {
-		case "/apps/:app/plans":
-			result, err = listPlanOfApp(matches.Params["app"])
-		case "/apps/:app/plans/:planName":
-			result, err = showPlan(matches.Params["app"], matches.Params["planName"])
-		case "/apps/:app/plans/:planName/phases/:phaseId/tasks":
-			result, err = listTaskOfPhase(matches.Params["app"], matches.Params["planName"], matches.Params["phaseId"])
+		case "/apps/:appName/plans":
+			switch matches.Method {
+			case "POST":
+				result, err = createRepo(matches.Params["appName"], planCreateFlags.name)
+			case "LIST":
+				result, err = listPlanOfApp(matches.Params["appName"])
+			default:
+				return outputError(fmt.Errorf("unsupported method: %s", matches.Method))
+			}
+		case "/apps/:appName/plans/:planName":
+			result, err = showPlan(matches.Params["appName"], matches.Params["planName"])
+		case "/apps/:appName/plans/:planName/phases":
+			if matches.Method == "POST" {
+				if planCreateFlags.name == "" {
+					return outputError(fmt.Errorf("POST /apps/:appName/plans/:planName/phases requires --name flag"))
+				}
+				result, err = createPhase(matches.Params["appName"], matches.Params["planName"], planCreateFlags.name)
+			} else {
+				return outputError(fmt.Errorf("unsupported method: %s", matches.Method))
+			}
+		case "/apps/:appName/plans/:planName/phases/:phase/tasks":
+			switch matches.Method {
+			case "LIST":
+				result, err = listTaskOfPhase(matches.Params["appName"], matches.Params["planName"], matches.Params["phase"])
+			case "POST":
+				if planCreateFlags.name == "" {
+					return outputError(fmt.Errorf("POST /apps/:appName/plans/:planName/phases/:phase/tasks requires --name flag"))
+				}
+				result, err = createTask(matches.Params["appName"], matches.Params["planName"], planCreateFlags.name, matches.Params["phase"])
+			default:
+				return outputError(fmt.Errorf("unsupported method: %s", matches.Method))
+			}
 		default:
 			return outputError(fmt.Errorf("unsupported path: %s", path))
 		}
@@ -84,38 +119,31 @@ func listPlanOfApp(appName string) (interface{}, error) {
 // showPlan 获取指定 planName 的单个 Plan 详情
 // planName: Plan.Name 字段（完整的 Gitea Repo 名，如 "plan-102-HttpClient-Rules"）
 func showPlan(appName, planName string) (*plan.Plan, error) {
-	// 直接获取单个 repo
 	repo, err := showRepo(appName, planName)
 	if err != nil {
 		return nil, err
 	}
 
-	// 获取该 repo 的 projects
 	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
 	}
 
-	// 将 projects 转换为 phases（只包含符合 PHASE-xx 格式的）
 	translator := plan.NewPlanTranslator()
 	phases := translator.TranslateMilestoneList2PhaseList(milestones)
 
-	// 转换为 Plan 对象
 	p, err := translator.TranslateRepo2Plan(repo)
 	if err != nil {
 		return nil, err
 	}
 
-	// 填充 Phases 字段
 	p.Phases = phases
 
 	return p, nil
 }
 
 // listTaskOfPhase 获取指定 Phase 下的所有 Tasks
-// 返回 []plan.Task 数组
 func listTaskOfPhase(appName, planName, phaseId string) (interface{}, error) {
-	// 调用 domain service（内部会调用 api 的 listMilestoneOfRepo）
 	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appName, planName, phaseId)
 	if err != nil {
 		return nil, err
@@ -131,7 +159,6 @@ func listTaskOfPhase(appName, planName, phaseId string) (interface{}, error) {
 		return nil, err
 	}
 
-	// 过滤属于指定 milestone 的 issues
 	var filteredIssues []*gitea.Issue
 	for _, issue := range issues {
 		if issue.Milestone != nil && fmt.Sprintf("%d", issue.Milestone.ID) == milestoneId {
@@ -145,6 +172,44 @@ func listTaskOfPhase(appName, planName, phaseId string) (interface{}, error) {
 	return tasks, nil
 }
 
+// createPhase 创建 Phase（Milestone）
+// appName: 应用名称
+// planName: Plan 名称
+// name: Phase 名称
+func createPhase(appName, planName, name string) (*gitea.Milestone, error) {
+	nextPhaseId, err := plan.GenNextPhaseId(appName, planName)
+	if err != nil {
+		return nil, err
+	}
+
+	title := fmt.Sprintf("%s: %s", nextPhaseId, name)
+
+	return createMilestone(appName, planName, title)
+}
+
+// createTask 创建 Task
+// appName: 应用名称
+// planName: Plan 名称
+// name: Task 标题
+// phase: Phase ID
+func createTask(appName, planName, name, phase string) (*gitea.Issue, error) {
+	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appName, planName, phase)
+	if err != nil {
+		return nil, fmt.Errorf("failed to translate phaseId to milestoneId: %w", err)
+	}
+
+	nextTaskId, err := plan.GenNextTaskId(appName, planName, phase)
+	if err != nil {
+		return nil, err
+	}
+
+	title := fmt.Sprintf("%s: %s", nextTaskId, name)
+
+	return createIssue(appName, planName, title, milestoneId)
+}
+
 func init() {
 	rootCmd.AddCommand(planCmd)
+
+	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "Name")
 }

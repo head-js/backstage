@@ -21,6 +21,17 @@ var apiRoutes = []Route{
 	{Method: "GET", Pattern: "/repos/:username/:repoName/milestones/:milestonePrefix/issues", Matcher: urlpath.New("/repos/:username/:repoName/milestones/:milestonePrefix/issues")},
 	{Method: "GET", Pattern: "/version", Matcher: urlpath.New("/version")},
 	{Method: "GET", Pattern: "/users/:username/repos", Matcher: urlpath.New("/users/:username/repos")},
+	{Method: "POST", Pattern: "/repos/:owner/:repoName/transfer", Matcher: urlpath.New("/repos/:owner/:repoName/transfer")},
+}
+
+// createRepoFlags 用于 POST /repos 的 flags
+var createRepoFlags struct {
+	name string
+}
+
+// transferRepoFlags 用于 POST /repos/:owner/:repoName/transfer 的 flags
+var transferRepoFlags struct {
+	newOwner string
 }
 
 // apiCmd 通用 API 命令
@@ -72,9 +83,6 @@ func executeHandler(adapter *internalGitea.Adapter, path string, matches MatchRe
 		if matches.Method == "GET" {
 			return adapter.ListRepos()
 		}
-		if matches.Method == "POST" {
-			return nil, fmt.Errorf("POST /repos requires --name and --description flags")
-		}
 	case "/repos/:username/:repoName":
 		if matches.Method == "GET" {
 			return adapter.GetRepo(matches.Params["username"], matches.Params["repoName"])
@@ -87,10 +95,6 @@ func executeHandler(adapter *internalGitea.Adapter, path string, matches MatchRe
 		if matches.Method == "GET" {
 			return adapter.ListRepoMilestones(matches.Params["username"], matches.Params["repoName"])
 		}
-	case "/repos/:username/:repoName/milestones/:milestonePrefix/issues":
-		if matches.Method == "GET" {
-			return adapter.ListIssuesByMilestonePrefix(matches.Params["username"], matches.Params["repoName"], matches.Params["milestonePrefix"])
-		}
 	case "/version":
 		if matches.Method == "GET" {
 			return adapter.GetGiteaVersion()
@@ -98,6 +102,13 @@ func executeHandler(adapter *internalGitea.Adapter, path string, matches MatchRe
 	case "/users/:username/repos":
 		if matches.Method == "GET" {
 			return listRepoOfUser(matches.Params["username"])
+		}
+	case "/repos/:owner/:repoName/transfer":
+		if matches.Method == "POST" {
+			if transferRepoFlags.newOwner == "" {
+				return nil, fmt.Errorf("POST /repos/:owner/:repoName/transfer requires --new-owner flag")
+			}
+			return adapter.TransferRepo(matches.Params["owner"], matches.Params["repoName"], transferRepoFlags.newOwner)
 		}
 	}
 	return nil, fmt.Errorf("unsupported API: %s %s", matches.Method, path)
@@ -120,6 +131,12 @@ func printResult(data interface{}) {
 
 func init() {
 	rootCmd.AddCommand(apiCmd)
+
+	// 为 POST /repos 添加 flags
+	apiCmd.Flags().StringVar(&createRepoFlags.name, "name", "", "Repository name for POST /repos")
+
+	// 为 POST /repos/:owner/:repoName/transfer 添加 flags
+	apiCmd.Flags().StringVar(&transferRepoFlags.newOwner, "new-owner", "", "New owner for repository transfer")
 }
 
 /* ==== 下列方法被 api 和 plan 命令共享使用 ==== */
@@ -144,3 +161,58 @@ func showRepo(username, repoName string) (*gitea.Repository, error) {
 	return adapter.GetRepo(username, repoName)
 }
 
+// createRepo 创建仓库
+// owner: 目标 owner（仓库创建后转移到此用户）
+// repoName: 仓库名称
+func createRepo(owner string, repoName string) (*gitea.Repository, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	// 先用系统默认 owner 创建仓库
+	_, err = adapter.CreateRepo(repoName)
+	if err != nil {
+		return nil, err
+	}
+
+	// 立刻把仓库转移给目标 owner
+	return transferRepo("backstage", repoName, owner)
+}
+
+// transferRepo 转移仓库
+// oldOwner: 原仓库所有者
+// repoName: 仓库名称
+// newOwner: 新仓库所有者
+func transferRepo(oldOwner, repoName, newOwner string) (*gitea.Repository, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	return adapter.TransferRepo(oldOwner, repoName, newOwner)
+}
+
+// createMilestone 创建里程碑
+// owner: 仓库所有者
+// repo: 仓库名称
+// title: 里程碑标题
+func createMilestone(owner, repo, title string) (*gitea.Milestone, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	return adapter.CreateMilestone(owner, repo, title)
+}
+
+// createIssue 创建 Issue
+// owner: 仓库所有者
+// repo: 仓库名称
+// title: Issue 标题
+// milestoneId: Milestone 的数字 ID（用于关联 Milestone）
+func createIssue(owner, repo, title, milestoneId string) (*gitea.Issue, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	return adapter.CreateIssue(owner, repo, title, milestoneId)
+}
