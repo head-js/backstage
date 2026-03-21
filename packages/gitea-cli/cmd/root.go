@@ -39,3 +39,25 @@ func outputError(err error) error {
 	// 返回 nil 避免 cobra 再打印一次相同的错误
 	return nil
 }
+
+// printResult 输出结果，支持 string 直接打印和 struct JSON 输出
+func printResult(data interface{}) {
+	if data == nil {
+		fmt.Println("OK")
+		return
+	}
+
+	// 如果是 string 类型，直接输出
+	if s, ok := data.(string); ok {
+		fmt.Println(s)
+		return
+	}
+
+	// 其他类型走 JSON 序列化
+	jsonBytes, err := json.Marshal(data)
+	if err != nil {
+		fmt.Printf("%v\n", data)
+		return
+	}
+	fmt.Println(string(jsonBytes))
+}

@@ -72,21 +72,6 @@ Examples:
 	},
 }
 
-// printResult 简单 JSON 输出
-func printResult(data interface{}) {
-	if data == nil {
-		fmt.Println("OK")
-		return
-	}
-
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
-		fmt.Printf("%v\n", data)
-		return
-	}
-	fmt.Println(string(jsonBytes))
-}
-
 func init() {
 	// 注册 api 路由
 	apiRouter.Verb("GET", "/repos", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {

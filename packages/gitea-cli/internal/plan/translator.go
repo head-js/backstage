@@ -15,9 +15,11 @@
 package plan
 
 import (
+	"bytes"
 	"fmt"
 	"regexp"
 	"strings"
+	"text/template"
 	"time"
 
 	"code.gitea.io/sdk/gitea"
@@ -130,14 +132,25 @@ func (pt *PlanTranslator) TranslateMilestone2Phase(m *gitea.Milestone) Phase {
 		updatedAt = m.Updated.Format(time.RFC3339)
 	}
 
+	// 根据 Milestone State 设置 Status
+	status := "UNKNOWN"
+	switch m.State {
+	case "open":
+		status = "TODO"
+	case "closed":
+		status = "SUCCESS"
+	}
+
 	return Phase{
-		Id:    phaseId,
-		Name:  m.Title,
-		Tasks: []Task{},
+		Id:     phaseId,
+		Name:   m.Title,
+		Status: status,
+		Tasks:  []Task{},
 		Gitea: GiteaExtra{
 			Type:        "MILESTONE",
 			Id:          m.ID,
 			Name:        m.Title,
+			State:       string(m.State),
 			Description: m.Description,
 			CreatedAt:   m.Created.Format(time.RFC3339),
 			UpdatedAt:   updatedAt,
@@ -179,9 +192,28 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 		updatedAt = issue.Updated.Format(time.RFC3339)
 	}
 
+	// 提取 Label 名称列表，并根据 Label 设置 Status
+	var labelNames []string
+	status := "UNKNOWN"
+	for _, label := range issue.Labels {
+		if label != nil && strings.HasPrefix(label.Name, "TASK-") {
+			labelNames = append(labelNames, label.Name)
+			// 根据 Label 设置 Status
+			switch label.Name {
+			case "TASK-TODO":
+				status = "TODO"
+			case "TASK-SUCCESS":
+				status = "SUCCESS"
+			case "TASK-FAIL":
+				status = "FAIL"
+			}
+		}
+	}
+
 	return Task{
 		Id:      taskId,
 		Name:    issue.Title,
+		Status:  status,
 		Context: issue.Body,
 		Gitea: GiteaExtra{
 			Type:      "ISSUE",
@@ -189,6 +221,7 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 			Name:      issue.Title,
 			Body:      issue.Body,
 			State:     string(issue.State),
+			Labels:    labelNames,
 			CreatedAt: issue.Created.Format(time.RFC3339),
 			UpdatedAt: updatedAt,
 		},
@@ -226,4 +259,85 @@ func ExtractTaskId(issueTitle string) (string, string, error) {
 
 	taskId := "TASK-" + matches[1]
 	return taskId, matches[1], nil
+}
+
+// renderMarkdown 渲染 Markdown 模板（私有）
+func renderMarkdown(tmplStr string, data interface{}) (string, error) {
+	tmpl, err := template.New("markdown").Parse(tmplStr)
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	err = tmpl.Execute(&buf, data)
+	if err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+// TranslatePlan2Markdown 将 Plan 转换为 Markdown 格式
+func TranslatePlan2Markdown(plan Plan) (markdown string) {
+	const tmplStr = `# Plan: {{.Name}}
+
+{{range .Phases}}
+## {{.Name}}
+
+{{end}}`
+
+	result, err := renderMarkdown(tmplStr, plan)
+	if err != nil {
+		return ""
+	}
+
+	return result
+}
+
+// TranslatePhase2Markdown 将 Phase 转换为 Markdown 格式
+func TranslatePhase2Markdown(phase Phase) (markdown string) {
+	const tmplStr = `# Current Phase
+
+## Metadata
+
+- id: {{.Id}}
+- name: {{.Name}}
+- status: {{.Status}}
+
+## Tasks
+
+{{range .Tasks}}
+- [ ] {{.Name}}
+
+{{end}}`
+
+	result, err := renderMarkdown(tmplStr, phase)
+	if err != nil {
+		return ""
+	}
+
+	return result
+}
+
+// TranslateTask2Markdown 将 Task 转换为 Markdown 格式
+func TranslateTask2Markdown(task Task) (markdown string) {
+	const tmplStr = `# Current Task
+
+## Metadata
+
+- id: {{.Id}}
+- name: {{.Name}}
+- status: {{.Status}}
+
+## Context
+
+{{.Context}}
+`
+
+	result, err := renderMarkdown(tmplStr, task)
+	if err != nil {
+		return ""
+	}
+
+	return result
 }
