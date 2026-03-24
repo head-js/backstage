@@ -1,10 +1,9 @@
 package cmd
 
 import (
-	"encoding/json"
 	"fmt"
-	"os"
 	"slices"
+	"strings"
 
 	"cmp"
 
@@ -25,19 +24,19 @@ var planCreateFlags struct {
 // planCmd 计划管理命令
 var planCmd = &cobra.Command{
 	Use:   "plan <method> <path>",
-	Short: "Manage plans",
-	Long: `Manage plans in Gitea.
+	Short: "A CLI tool to manage Plan / Phase / Task.",
+	Long: `A CLI tool to manage Plan / Phase / Task by RESTful-style path.
 Examples:
-	backstage-gitea plan LIST /cms/plans
-	backstage-gitea plan POST /cms/plans --name "plan-102-UploadImage"
-	backstage-gitea plan GET  /cms/plan-102-UploadImage
-	backstage-gitea plan LIST /cms/plan-102-UploadImage/phases
-	backstage-gitea plan POST /cms/plan-102-UploadImage/phases --name "Design"
-	backstage-gitea plan LIST /cms/plan-102-UploadImage/PHASE-100/tasks
-	backstage-gitea plan POST /cms/plan-102-UploadImage/PHASE-100/tasks --name "Design-Database"`,
+	backstage-gitea plan LIST /cms-mgr/plans
+	backstage-gitea plan POST /cms-mgr/plans --name "plan-102-UploadImage"
+	backstage-gitea plan GET  /cms-mgr/plan-102-UploadImage
+	backstage-gitea plan LIST /cms-mgr/plan-102-UploadImage/phases
+	backstage-gitea plan POST /cms-mgr/plan-102-UploadImage/phases --name "Design"
+	backstage-gitea plan LIST /cms-mgr/plan-102-UploadImage/PHASE-100/tasks
+	backstage-gitea plan POST /cms-mgr/plan-102-UploadImage/PHASE-100/tasks --name "Design-Database"`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		method := args[0]
+		method := strings.ToUpper(args[0])
 		path := args[1]
 
 		// 构建 args 映射
@@ -53,19 +52,80 @@ Examples:
 		}
 
 		// 输出结果
-		if jsonFlag {
-			return json.NewEncoder(os.Stdout).Encode(result)
-		}
-
-		// 简单 JSON 输出
 		printResult(result)
 		return nil
 	},
 }
 
+func init() {
+	// 注册 plan 路由
+	planRouter.Verb("LIST", "/:appId/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return listPlanOfApp(params["appId"])
+	})
+
+	planRouter.Verb("POST", "/:appId/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["name"] == "" {
+			return nil, fmt.Errorf("POST /:appId/plans requires --name flag")
+		}
+		return createPlan(params["appId"], args["name"])
+	})
+
+	planRouter.Verb("GET", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return showPlan(params["appId"], params["planId"])
+	})
+
+	// 同步 Plan 到 Gitea Wiki
+	planRouter.Verb("PATCH", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return plan.SyncPlanToWiki(params["appId"], params["planId"])
+	})
+
+	planRouter.Verb("LIST", "/:appId/:planId/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return listPhaseOfPlan(params["appId"], params["planId"])
+	})
+
+	planRouter.Verb("POST", "/:appId/:planId/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["name"] == "" {
+			return nil, fmt.Errorf("POST /:appId/:planId/phases requires --name flag")
+		}
+		return createPhase(params["appId"], params["planId"], args["name"])
+	})
+
+	planRouter.Verb("LIST", "/:appId/:planId/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return listTaskOfPhase(params["appId"], params["planId"], params["phase"])
+	})
+
+	planRouter.Verb("POST", "/:appId/:planId/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["name"] == "" {
+			return nil, fmt.Errorf("POST /:appId/:planId/:phase/tasks requires --name flag")
+		}
+		return createTask(params["appId"], params["planId"], args["name"], params["phase"])
+	})
+
+	planRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return showTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
+	})
+
+	// Backstage Plan - World Model
+	planRouter.Verb("MARKDOWN", "/:appId/:planId/current-phase", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return markdownCurrentPhase(params["appId"], params["planId"])
+	})
+
+	planRouter.Verb("MARKDOWN", "/:appId/:planId/current-task", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return markdownCurrentTask(params["appId"], params["planId"])
+	})
+
+	rootCmd.AddCommand(planCmd)
+
+	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "Name")
+}
+
 // listPlanOfApp 获取指定应用名称下的所有 plan repos
-func listPlanOfApp(appName string) (interface{}, error) {
-	repos, err := listRepoOfUser(appName)
+func listPlanOfApp(appId string) ([]plan.Plan, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+	repos, err := adapter.ListRepoOfOwner(appId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch repos: %w", err)
 	}
@@ -79,15 +139,20 @@ func listPlanOfApp(appName string) (interface{}, error) {
 	return plans, nil
 }
 
-// showPlan 获取指定 planName 的单个 Plan 详情
-// planName: Plan.Name 字段（完整的 Gitea Repo 名，如 "plan-102-HttpClient-Rules"）
-func showPlan(appName, planName string) (interface{}, error) {
-	repo, err := showRepo(appName, planName)
+// showPlan 获取指定 planId 的单个 Plan 详情
+// planId: Plan.Name 字段（完整的 Gitea Repo 名，如 "plan-102-HttpClient-Rules"）
+func showPlan(appId, planId string) (interface{}, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+
+	repo, err := adapter.GetRepo(appId, planId)
 	if err != nil {
 		return nil, err
 	}
 
-	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
+	milestones, err := adapter.ListMilestoneOfRepo(appId, planId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
 	}
@@ -111,8 +176,8 @@ func showPlan(appName, planName string) (interface{}, error) {
 }
 
 // listPhaseOfPlan 获取指定 Plan 下的所有 Phases
-func listPhaseOfPlan(appName, planName string) ([]plan.Phase, error) {
-	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
+func listPhaseOfPlan(appId, planId string) ([]plan.Phase, error) {
+	milestones, err := internalGitea.ListMilestoneOfRepo(appId, planId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
 	}
@@ -129,13 +194,13 @@ func listPhaseOfPlan(appName, planName string) ([]plan.Phase, error) {
 }
 
 // listTaskOfPhase 获取指定 Phase 下的所有 Tasks
-func listTaskOfPhase(appName, planName, phaseId string) ([]plan.Task, error) {
-	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appName, planName, phaseId)
+func listTaskOfPhase(appId, planId, phaseId string) ([]plan.Task, error) {
+	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appId, planId, phaseId)
 	if err != nil {
 		return nil, err
 	}
 
-	issues, err := internalGitea.ListIssueOfMilestone(appName, planName, milestoneId)
+	issues, err := internalGitea.ListIssueOfMilestone(appId, planId, milestoneId)
 	if err != nil {
 		return nil, err
 	}
@@ -152,10 +217,10 @@ func listTaskOfPhase(appName, planName, phaseId string) ([]plan.Task, error) {
 }
 
 // createPlan 创建 Plan（Gitea Repo），并初始化三个默认 Label
-// appName: 应用名称
+// appId: 应用名称
 // name: Plan 名称
-func createPlan(appName, name string) (interface{}, error) {
-	repo, err := internalGitea.CreateRepo(appName, name)
+func createPlan(appId, name string) (interface{}, error) {
+	repo, err := internalGitea.CreateRepo(appId, name)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +234,7 @@ func createPlan(appName, name string) (interface{}, error) {
 		{"TASK-TODO", "#fbca04"},
 	}
 	for _, l := range labels {
-		if _, err := internalGitea.CreateLabel(appName, name, l.name, l.color); err != nil {
+		if _, err := internalGitea.CreateLabel(appId, name, l.name, l.color); err != nil {
 			return nil, fmt.Errorf("failed to create label %s: %w", l.name, err)
 		}
 	}
@@ -178,43 +243,51 @@ func createPlan(appName, name string) (interface{}, error) {
 }
 
 // createPhase 创建 Phase（Milestone）
-// appName: 应用名称
-// planName: Plan 名称
+// appId: 应用名称
+// planId: Plan 名称
 // name: Phase 名称
-func createPhase(appName, planName, name string) (*gitea.Milestone, error) {
-	nextPhaseId, err := plan.GenNextPhaseId(appName, planName)
+func createPhase(appId, planId, name string) (*gitea.Milestone, error) {
+	nextPhaseId, err := plan.GenNextPhaseId(appId, planId)
 	if err != nil {
 		return nil, err
 	}
 
 	title := fmt.Sprintf("%s: %s", nextPhaseId, name)
 
-	return createMilestone(appName, planName, title)
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+	return adapter.CreateMilestone(appId, planId, title)
 }
 
 // createTask 创建 Task
-// appName: 应用名称
-// planName: Plan 名称
+// appId: 应用名称
+// planId: Plan 名称
 // name: Task 标题
 // phase: Phase ID
-func createTask(appName, planName, name, phase string) (*gitea.Issue, error) {
-	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appName, planName, phase)
+func createTask(appId, planId, name, phase string) (*gitea.Issue, error) {
+	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appId, planId, phase)
 	if err != nil {
 		return nil, fmt.Errorf("failed to translate phaseId to milestoneId: %w", err)
 	}
 
-	nextTaskId, err := plan.GenNextTaskId(appName, planName, phase)
+	nextTaskId, err := plan.GenNextTaskId(appId, planId, phase)
 	if err != nil {
 		return nil, err
 	}
 
 	title := fmt.Sprintf("%s: %s", nextTaskId, name)
 
-	return createIssue(appName, planName, title, milestoneId)
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+	return adapter.CreateIssue(appId, planId, title, milestoneId)
 }
 
-func showTask(appName, planName, phaseId, taskId string) (*plan.Task, error) {
-	tasks, err := listTaskOfPhase(appName, planName, phaseId)
+func showTask(appId, planId, phaseId, taskId string) (*plan.Task, error) {
+	tasks, err := listTaskOfPhase(appId, planId, phaseId)
 	if err != nil {
 		return nil, err
 	}
@@ -227,68 +300,11 @@ func showTask(appName, planName, phaseId, taskId string) (*plan.Task, error) {
 	return nil, fmt.Errorf("task not found")
 }
 
-func init() {
-	// 注册 plan 路由
-	planRouter.Verb("LIST", "/:appName/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return listPlanOfApp(params["appName"])
-	})
-
-	planRouter.Verb("POST", "/:appName/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		if args["name"] == "" {
-			return nil, fmt.Errorf("POST /:appName/plans requires --name flag")
-		}
-		return createPlan(params["appName"], args["name"])
-	})
-
-	planRouter.Verb("GET", "/:appName/:planName", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return showPlan(params["appName"], params["planName"])
-	})
-
-	planRouter.Verb("LIST", "/:appName/:planName/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return listPhaseOfPlan(params["appName"], params["planName"])
-	})
-
-	planRouter.Verb("POST", "/:appName/:planName/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		if args["name"] == "" {
-			return nil, fmt.Errorf("POST /:appName/:planName/phases requires --name flag")
-		}
-		return createPhase(params["appName"], params["planName"], args["name"])
-	})
-
-	planRouter.Verb("LIST", "/:appName/:planName/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return listTaskOfPhase(params["appName"], params["planName"], params["phase"])
-	})
-
-	planRouter.Verb("POST", "/:appName/:planName/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		if args["name"] == "" {
-			return nil, fmt.Errorf("POST /:appName/:planName/:phase/tasks requires --name flag")
-		}
-		return createTask(params["appName"], params["planName"], args["name"], params["phase"])
-	})
-
-	planRouter.Verb("GET", "/:appName/:planName/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return showTask(params["appName"], params["planName"], params["phaseId"], params["taskId"])
-	})
-
-	// Backstage Plan - World Model
-	planRouter.Verb("MARKDOWN", "/:appName/:planName/current-phase", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return markdownCurrentPhase(params["appName"], params["planName"])
-	})
-
-	planRouter.Verb("MARKDOWN", "/:appName/:planName/current-task", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return markdownCurrentTask(params["appName"], params["planName"])
-	})
-
-	rootCmd.AddCommand(planCmd)
-
-	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "Name")
-}
-
 // markdownCurrentPhase 获取当前 Phase 的 Markdown 展示
 // 筛选出状态为 TODO/UNKNOWN 的 Phase，取第一个
-func markdownCurrentPhase(appName, planName string) (interface{}, error) {
+func markdownCurrentPhase(appId, planId string) (interface{}, error) {
 	// listPhaseOfPlan 已按 Phase.Id 升序排序
-	phases, err := listPhaseOfPlan(appName, planName)
+	phases, err := listPhaseOfPlan(appId, planId)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +328,7 @@ func markdownCurrentPhase(appName, planName string) (interface{}, error) {
 	}
 
 	// 获取该 Phase 下的所有 Tasks
-	tasks, err := listTaskOfPhase(appName, planName, currentPhase.Id)
+	tasks, err := listTaskOfPhase(appId, planId, currentPhase.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tasks: %w", err)
 	}
@@ -325,9 +341,9 @@ func markdownCurrentPhase(appName, planName string) (interface{}, error) {
 
 // markdownCurrentTask 获取当前 Task 的 Markdown 展示
 // 取第一个 Phase 的第一个 Task（目前没有状态管理，先取第一个）
-func markdownCurrentTask(appName, planName string) (interface{}, error) {
+func markdownCurrentTask(appId, planId string) (interface{}, error) {
 	// 获取 Phases（已按 Phase.Id 升序排序）
-	phases, err := listPhaseOfPlan(appName, planName)
+	phases, err := listPhaseOfPlan(appId, planId)
 	if err != nil {
 		return nil, err
 	}
@@ -340,7 +356,7 @@ func markdownCurrentTask(appName, planName string) (interface{}, error) {
 	currentPhase := &phases[0]
 
 	// 获取该 Phase 下的所有 Tasks
-	tasks, err := listTaskOfPhase(appName, planName, currentPhase.Id)
+	tasks, err := listTaskOfPhase(appId, planId, currentPhase.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tasks: %w", err)
 	}

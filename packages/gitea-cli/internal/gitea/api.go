@@ -50,7 +50,7 @@ func ListMilestoneOfRepo(owner, repoName string) ([]*gitea.Milestone, error) {
 	if err != nil {
 		return nil, err
 	}
-	milestones, err := adapter.ListRepoMilestones(owner, repoName)
+	milestones, err := adapter.ListMilestoneOfRepo(owner, repoName)
 	if err != nil {
 		return nil, err
 	}

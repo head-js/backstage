@@ -56,7 +56,7 @@ func (pt *PlanTranslator) TranslateRepoList2PlanList(repos []*gitea.Repository) 
 
 // TranslateRepo2Plan 将单个 Gitea Repo 转换为 Plan
 func (pt *PlanTranslator) TranslateRepo2Plan(repo *gitea.Repository) (*Plan, error) {
-	id, err := extractPlanId(repo.Name)
+	id, err := ExtractPlanId(repo.Name)
 	if err != nil {
 		fmt.Printf("Warning: invalid plan naming for repo %s: %v\n", repo.Name, err)
 		return nil, fmt.Errorf("invalid plan naming: %w", err)
@@ -79,16 +79,16 @@ func (pt *PlanTranslator) TranslateRepo2Plan(repo *gitea.Repository) (*Plan, err
 	return plan, nil
 }
 
-// extractPlanId 从 repo 名称提取计划 ID 并大写化
-// Gitea.Repo.Name -> plan-102-HttpClient-Rules
-// Plan.Id         -> PLAN-102（注意这个大写化）
-func extractPlanId(repoName string) (string, error) {
-	pattern := `^plan-(\d+)-(.+)$`
+// ExtractPlanId
+// Gitea.Repo.Name -> PLAN-102-HttpClient-Rules
+// Plan.Id         -> PLAN-102
+func ExtractPlanId(planName string) (string, error) {
+	pattern := `(?i)^plan-(\d{3})`
 	regex := regexp.MustCompile(pattern)
-	matches := regex.FindStringSubmatch(repoName)
+	matches := regex.FindStringSubmatch(planName)
 
 	if len(matches) < 2 {
-		return "", fmt.Errorf("repo name must follow format 'plan-{id}-{name}': %s", repoName)
+		return "", fmt.Errorf("Plan.Name must follow format 'PLAN-{id}-{name}': %s", planName)
 	}
 
 	id := matches[1]                        // 数字部分：102
@@ -138,7 +138,7 @@ func (pt *PlanTranslator) TranslateMilestone2Phase(m *gitea.Milestone) Phase {
 	case "open":
 		status = "TODO"
 	case "closed":
-		status = "SUCCESS"
+		status = "PASS"
 	}
 
 	return Phase{
@@ -202,8 +202,10 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 			switch label.Name {
 			case "TASK-TODO":
 				status = "TODO"
-			case "TASK-SUCCESS":
-				status = "SUCCESS"
+			case "TASK-HALT":
+				status = "HALT"
+			case "TASK-PASS":
+				status = "PASS"
 			case "TASK-FAIL":
 				status = "FAIL"
 			}

@@ -5,14 +5,15 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
-	giteaApi "com.lisitede.backstage.gitea/internal/gitea"
+	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 )
 
 // TranslatePhaseId2MilestoneId 根据 phaseId (如 PHASE-01) 查找对应的 Gitea Milestone numeric ID
 // 流程：调用 api 获取 milestones → 遍历匹配 title 前缀（忽略大小写）
 func TranslatePhaseId2MilestoneId(appName, planName, phaseId string) (string, error) {
-	milestones, err := giteaApi.ListMilestoneOfRepo(appName, planName)
+	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
 	if err != nil {
 		return "", err
 	}
@@ -37,7 +38,7 @@ func GenNextTaskId(appName, planName, phaseId string) (string, error) {
 		return "", err
 	}
 
-	issues, err := giteaApi.ListIssueOfMilestone(appName, planName, milestoneId)
+	issues, err := internalGitea.ListIssueOfMilestone(appName, planName, milestoneId)
 	if err != nil {
 		return "", err
 	}
@@ -73,7 +74,7 @@ func GenNextTaskId(appName, planName, phaseId string) (string, error) {
 // planName: Plan 名称
 // 返回 Phase 编号字符串（如 "PHASE-200"）
 func GenNextPhaseId(appName, planName string) (string, error) {
-	milestones, err := giteaApi.ListMilestoneOfRepo(appName, planName)
+	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
 	if err != nil {
 		return "", err
 	}
@@ -140,4 +141,58 @@ func genReserveId(existIds []string) (string, error) {
 	}
 
 	return fmt.Sprintf("%d00", a+1), nil
+}
+
+// SyncPlanToWiki 同步 Plan 到 Gitea Wiki
+func SyncPlanToWiki(appId, planId string) (interface{}, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+
+	repo, err := adapter.GetRepo(appId, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	translator := NewPlanTranslator()
+	plan, err := translator.TranslateRepo2Plan(repo)
+	if err != nil {
+		return nil, err
+	}
+
+	milestones, err := internalGitea.ListMilestoneOfRepo(appId, planId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
+	}
+
+	phases := translator.TranslateMilestoneList2PhaseList(milestones)
+
+	// TODO: 实现 Plan 同步到 Wiki 的逻辑
+	// 2. 获取每个 Phase 的所有 Task
+	// 3. 将 Plan、Phase、Task 的信息同步到 Gitea Wiki
+
+	var phasesMarkdown strings.Builder
+	for _, p := range phases {
+		phasesMarkdown.WriteString(fmt.Sprintf("### %s\n\n", p.Name))
+	}
+
+	markdown := fmt.Sprintf(`# %s: %s
+
+> updated_at: %s
+
+## Phases
+
+%s`, plan.Id, plan.Name, time.Now().Format("2006-01-02 15:04:05"), phasesMarkdown.String())
+
+	// 约定保存在 Wiki/Index
+	_, err = adapter.UpdateWikiOfRepo(appId, planId, "Index", markdown)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update wiki: %w", err)
+	}
+
+	return map[string]interface{}{
+		"code":    0,
+		"message": "ok",
+	}, nil
 }

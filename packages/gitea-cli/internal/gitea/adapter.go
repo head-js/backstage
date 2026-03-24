@@ -1,6 +1,7 @@
 package gitea
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
 
@@ -41,9 +42,9 @@ func (a *Adapter) ListRepos() ([]*gitea.Repository, error) {
 	return repos, err
 }
 
-// ListUserRepos 列出用户的所有仓库 (GET /users/{username}/repos)
-func (a *Adapter) ListUserRepos(username string) ([]*gitea.Repository, error) {
-	repos, _, err := a.client.ListUserRepos(username, gitea.ListReposOptions{})
+// ListRepoOfOwner 列出用户的所有仓库
+func (a *Adapter) ListRepoOfOwner(owner string) ([]*gitea.Repository, error) {
+	repos, _, err := a.client.ListUserRepos(owner, gitea.ListReposOptions{})
 	return repos, err
 }
 
@@ -53,19 +54,19 @@ func (a *Adapter) GetRepo(owner, repo string) (*gitea.Repository, error) {
 	return result, err
 }
 
-// ListRepoIssues 列出仓库 Issue 列表 (GET /repos/:username/:repoName/issues)
-func (a *Adapter) ListRepoIssues(owner, repo string) ([]*gitea.Issue, error) {
-	issues, _, err := a.client.ListRepoIssues(owner, repo, gitea.ListIssueOption{})
+// ListIssueOfRepo 列出仓库 Issue 列表
+func (a *Adapter) ListIssueOfRepo(owner, repoName string) ([]*gitea.Issue, error) {
+	issues, _, err := a.client.ListRepoIssues(owner, repoName, gitea.ListIssueOption{})
 	return issues, err
 }
 
-func (a *Adapter) SearchRepoIssues(owner, repo string, searchOptions gitea.ListIssueOption) ([]*gitea.Issue, error) {
-	issues, _, err := a.client.ListRepoIssues(owner, repo, searchOptions)
+func (a *Adapter) SearchRepoIssues(owner, repoName string, searchOptions gitea.ListIssueOption) ([]*gitea.Issue, error) {
+	issues, _, err := a.client.ListRepoIssues(owner, repoName, searchOptions)
 	return issues, err
 }
 
-// ListRepoMilestones 列出仓库 Milestone 列表 (GET /repos/:username/:repoName/milestones)
-func (a *Adapter) ListRepoMilestones(owner, repo string) ([]*gitea.Milestone, error) {
+// ListMilestoneOfRepo 列出仓库 Milestone 列表
+func (a *Adapter) ListMilestoneOfRepo(owner, repo string) ([]*gitea.Milestone, error) {
 	milestones, _, err := a.client.ListRepoMilestones(owner, repo, gitea.ListMilestoneOption{})
 	return milestones, err
 }
@@ -127,4 +128,26 @@ func (a *Adapter) CreateIssue(owner, repo, title string, milestoneId string) (*g
 	}
 	issue, _, err := a.client.CreateIssue(owner, repo, opts)
 	return issue, err
+}
+
+// ListWikiOfRepo 列出仓库 Wiki 列表
+func (a *Adapter) ListWikiOfRepo(owner, repo string) ([]*gitea.WikiPageMetaData, error) {
+	wikis, _, err := a.client.ListWikiPages(owner, repo, gitea.ListWikiPagesOptions{})
+	return wikis, err
+}
+
+// GetWikiOfRepo 获取仓库指定 Wiki 页面
+func (a *Adapter) GetWikiOfRepo(owner, repo, wikiName string) (*gitea.WikiPage, error) {
+	wiki, _, err := a.client.GetWikiPage(owner, repo, wikiName)
+	return wiki, err
+}
+
+// UpdateWikiOfRepo 更新仓库指定 Wiki 页面
+func (a *Adapter) UpdateWikiOfRepo(owner, repo, wikiName, content string) (*gitea.WikiPage, error) {
+	encodedContent := base64.StdEncoding.EncodeToString([]byte(content))
+	wiki, _, err := a.client.EditWikiPage(owner, repo, wikiName, gitea.CreateWikiPageOptions{
+		Title:         wikiName,
+		ContentBase64: encodedContent,
+	})
+	return wiki, err
 }
