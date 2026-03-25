@@ -95,6 +95,14 @@ func init() {
 		return adapter.ShowIssueOfRepoByPrefix(params["owner"], params["repoName"], params["issueId"])
 	})
 
+	apiRouter.Verb("DELETE", "/repos/:owner/:repoName/issues/:issueId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalGitea.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.DeleteIssueOfRepo(params["owner"], params["repoName"], params["issueId"])
+	})
+
 	apiRouter.Verb("GET", "/repos/:owner/:repoName/wikis", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		adapter, err := internalGitea.NewAdapter()
 		if err != nil {

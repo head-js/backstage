@@ -7,7 +7,6 @@ import (
 
 	"cmp"
 
-	"code.gitea.io/sdk/gitea"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"com.lisitede.backstage.gitea/internal/plan"
 	"github.com/spf13/cobra"
@@ -18,7 +17,8 @@ var planRouter Router
 
 // planCreateFlags 用于创建 Plan 的 flags
 var planCreateFlags struct {
-	name string
+	title string
+	name  string
 }
 
 // planCmd 计划管理命令
@@ -28,12 +28,18 @@ var planCmd = &cobra.Command{
 	Long: `A CLI tool to manage Plan / Phase / Task by RESTful-style path.
 Examples:
 	backstage-gitea plan LIST /cms-mgr/plans
-	backstage-gitea plan POST /cms-mgr/plans --name "plan-102-UploadImage"
-	backstage-gitea plan GET  /cms-mgr/plan-102-UploadImage
-	backstage-gitea plan LIST /cms-mgr/plan-102-UploadImage/phases
-	backstage-gitea plan POST /cms-mgr/plan-102-UploadImage/phases --name "Design"
-	backstage-gitea plan LIST /cms-mgr/plan-102-UploadImage/PHASE-100/tasks
-	backstage-gitea plan POST /cms-mgr/plan-102-UploadImage/PHASE-100/tasks --name "Design-Database"`,
+	backstage-gitea plan GET  /cms-mgr/PLAN-102
+	backstage-gitea plan LIST /cms-mgr/PLAN-102/phases
+	backstage-gitea plan LIST /cms-mgr/PLAN-102/PHASE-200/tasks
+
+Create Plan Example:
+	backstage-gitea plan POST /cms-mgr/plans --title "PLAN-102: Upload Image"
+
+Create Phase Example:
+	backstage-gitea plan POST /cms-mgr/PLAN-102/phases --name "Design & Develop"
+
+Create Task Example:
+	backstage-gitea plan POST /cms-mgr/PLAN-102/PHASE-200/tasks --name "Design Database"`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		method := strings.ToUpper(args[0])
@@ -43,6 +49,9 @@ Examples:
 		argsMap := map[string]string{}
 		if planCreateFlags.name != "" {
 			argsMap["name"] = planCreateFlags.name
+		}
+		if planCreateFlags.title != "" {
+			argsMap["title"] = planCreateFlags.title
 		}
 
 		// 调用路由
@@ -64,10 +73,10 @@ func init() {
 	})
 
 	planRouter.Verb("POST", "/:appId/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		if args["name"] == "" {
-			return nil, fmt.Errorf("POST /:appId/plans requires --name flag")
+		if args["title"] == "" {
+			return nil, fmt.Errorf("POST /:appId/plans requires --title flag")
 		}
-		return createPlan(params["appId"], args["name"])
+		return plan.CreatePlan(params["appId"], args["title"])
 	})
 
 	planRouter.Verb("GET", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -87,7 +96,7 @@ func init() {
 		if args["name"] == "" {
 			return nil, fmt.Errorf("POST /:appId/:planId/phases requires --name flag")
 		}
-		return createPhase(params["appId"], params["planId"], args["name"])
+		return plan.CreatePhase(params["appId"], params["planId"], args["name"])
 	})
 
 	planRouter.Verb("LIST", "/:appId/:planId/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -98,7 +107,7 @@ func init() {
 		if args["name"] == "" {
 			return nil, fmt.Errorf("POST /:appId/:planId/:phase/tasks requires --name flag")
 		}
-		return createTask(params["appId"], params["planId"], args["name"], params["phase"])
+		return plan.CreateTask(params["appId"], params["planId"], params["phase"], args["name"])
 	})
 
 	planRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -117,6 +126,7 @@ func init() {
 	rootCmd.AddCommand(planCmd)
 
 	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "Name")
+	planCmd.Flags().StringVar(&planCreateFlags.title, "title", "", "Title")
 }
 
 // listPlanOfApp 获取指定应用名称下的所有 plan repos
@@ -214,76 +224,6 @@ func listTaskOfPhase(appId, planId, phaseId string) ([]plan.Task, error) {
 	})
 
 	return tasks, nil
-}
-
-// createPlan 创建 Plan（Gitea Repo），并初始化三个默认 Label
-// appId: 应用名称
-// name: Plan 名称
-func createPlan(appId, name string) (interface{}, error) {
-	repo, err := internalGitea.CreateRepo(appId, name)
-	if err != nil {
-		return nil, err
-	}
-
-	labels := []struct {
-		name  string
-		color string
-	}{
-		{"TASK-SUCCESS", "#009800"},
-		{"TASK-FAIL", "#e11d21"},
-		{"TASK-TODO", "#fbca04"},
-	}
-	for _, l := range labels {
-		if _, err := internalGitea.CreateLabel(appId, name, l.name, l.color); err != nil {
-			return nil, fmt.Errorf("failed to create label %s: %w", l.name, err)
-		}
-	}
-
-	return repo, nil
-}
-
-// createPhase 创建 Phase（Milestone）
-// appId: 应用名称
-// planId: Plan 名称
-// name: Phase 名称
-func createPhase(appId, planId, name string) (*gitea.Milestone, error) {
-	nextPhaseId, err := plan.GenNextPhaseId(appId, planId)
-	if err != nil {
-		return nil, err
-	}
-
-	title := fmt.Sprintf("%s: %s", nextPhaseId, name)
-
-	adapter, err := internalGitea.NewAdapter()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
-	}
-	return adapter.CreateMilestone(appId, planId, title)
-}
-
-// createTask 创建 Task
-// appId: 应用名称
-// planId: Plan 名称
-// name: Task 标题
-// phase: Phase ID
-func createTask(appId, planId, name, phase string) (*gitea.Issue, error) {
-	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appId, planId, phase)
-	if err != nil {
-		return nil, fmt.Errorf("failed to translate phaseId to milestoneId: %w", err)
-	}
-
-	nextTaskId, err := plan.GenNextTaskId(appId, planId, phase)
-	if err != nil {
-		return nil, err
-	}
-
-	title := fmt.Sprintf("%s: %s", nextTaskId, name)
-
-	adapter, err := internalGitea.NewAdapter()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
-	}
-	return adapter.CreateIssue(appId, planId, title, milestoneId)
 }
 
 func showTask(appId, planId, phaseId, taskId string) (*plan.Task, error) {

@@ -2,11 +2,10 @@ package plan
 
 import (
 	"fmt"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
 
+	"code.gitea.io/sdk/gitea"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 )
 
@@ -27,123 +26,6 @@ func TranslatePhaseId2MilestoneId(appName, planName, phaseId string) (string, er
 	return "", fmt.Errorf("milestone not found for phaseId: %s", phaseId)
 }
 
-// GenNextTaskId 生成下一个 Task 编号
-// appName: 应用名称
-// planName: Plan 名称
-// phaseId: Phase ID（如 PHASE-01）
-// 返回 Task 编号字符串（如 "01"）
-func GenNextTaskId(appName, planName, phaseId string) (string, error) {
-	milestoneId, err := TranslatePhaseId2MilestoneId(appName, planName, phaseId)
-	if err != nil {
-		return "", err
-	}
-
-	issues, err := internalGitea.ListIssueOfMilestone(appName, planName, milestoneId)
-	if err != nil {
-		return "", err
-	}
-
-	// 调用 translator 把 issue.title 转成我们业务定义的 taskId
-	var ids []string
-	for _, issue := range issues {
-		_, id, err := ExtractTaskId(issue.Title)
-		if err != nil {
-			fmt.Printf("Warning: invalid task naming for issue %s: %v\n", issue.Title, err)
-			continue
-		}
-		// id 已经是数字部分
-		ids = append(ids, id)
-	}
-
-	// 排序
-	sort.Strings(ids)
-
-	// 打印整个数组
-	fmt.Printf("Task IDs: %v\n", ids)
-
-	nextId, err := genNextId(ids)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("TASK-%s", nextId), nil
-}
-
-// GenNextPhaseId 生成下一个 Phase 编号
-// appName: 应用名称
-// planName: Plan 名称
-// 返回 Phase 编号字符串（如 "PHASE-200"）
-func GenNextPhaseId(appName, planName string) (string, error) {
-	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
-	if err != nil {
-		return "", err
-	}
-
-	// 使用 translator 提取每个 milestone 的 phase ID
-	translator := NewPlanTranslator()
-	var ids []string
-	for _, m := range milestones {
-		_, id, err := translator.ExtractPhaseId(m.Title)
-		if err != nil {
-			fmt.Printf("Warning: invalid phase naming for milestone %s: %v\n", m.Title, err)
-			continue
-		}
-		// id 已经是数字部分
-		ids = append(ids, id)
-	}
-
-	// 排序
-	sort.Strings(ids)
-
-	// 打印整个数组
-	fmt.Printf("Phase IDs: %v\n", ids)
-
-	nextId, err := genNextId(ids)
-	if err != nil {
-		return "", err
-	}
-
-	return fmt.Sprintf("PHASE-%s", nextId), nil
-}
-
-// genNextId 私有方法
-func genNextId(existIds []string) (string, error) {
-	if len(existIds) == 0 {
-		return "100", nil
-	}
-
-	lastNum := existIds[len(existIds)-1]
-	lastInt, err := strconv.Atoi(lastNum)
-	if err != nil {
-		return "", fmt.Errorf("invalid task id: %s", lastNum)
-	}
-
-	next := lastInt + 1
-	if next >= 900 {
-		return "", fmt.Errorf("no available task id: reached 900")
-	}
-
-	return fmt.Sprintf("%03d", next), nil
-}
-
-// genReserveId 私有方法
-// 规则：取最大 ID 的百位，直接跳到下一个百位（如 110 → 200，225 → 300）
-func genReserveId(existIds []string) (string, error) {
-	if len(existIds) == 0 {
-		return "100", nil
-	}
-
-	lastNum := existIds[len(existIds)-1]
-	a := lastNum[0] - '0'
-
-	if a >= 9 {
-		return "", fmt.Errorf("no available task id: reached 900")
-	}
-
-	return fmt.Sprintf("%d00", a+1), nil
-}
-
-// SyncPlanToWiki 同步 Plan 到 Gitea Wiki
 func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
@@ -195,4 +77,139 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 		"code":    0,
 		"message": "ok",
 	}, nil
+}
+
+// CreatePlan
+// appId: e.g. cms-mgr
+// planTitle: e.g. "PLAN-102: UploadImage"
+func CreatePlan(appId, planTitle string) (*gitea.Repository, error) {
+	planId, err := ExtractPlanId(planTitle)
+	if err != nil {
+		return nil, fmt.Errorf("invalid plan name: %w", err)
+	}
+
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+
+	// 初始化 Repo
+	repo, err := adapter.CreateRepo(appId, planId, planTitle)
+	if err != nil {
+		return nil, err
+	}
+
+	// 初始化 Phase Labels
+	for _, status := range []Status{StatusPass, StatusFail, StatusTodo, StatusHold} {
+		labelName := fmt.Sprintf("PHASE-%s", status)
+		color := StatusColor[status]
+		if _, err := adapter.CreateLabel(appId, planId, labelName, color); err != nil {
+			return nil, fmt.Errorf("failed to create label %s: %w", labelName, err)
+		}
+	}
+
+	// 初始化 Task Labels
+	for _, status := range []Status{StatusPass, StatusFail, StatusTodo, StatusHold} {
+		labelName := fmt.Sprintf("TASK-%s", status)
+		color := StatusColor[status]
+		if _, err := adapter.CreateLabel(appId, planId, labelName, color); err != nil {
+			return nil, fmt.Errorf("failed to create label %s: %w", labelName, err)
+		}
+	}
+
+	// 初始化 Issue for Plan
+	if _, err := adapter.CreateIssue(appId, planId, planTitle, ""); err != nil {
+		return nil, fmt.Errorf("failed to create issue: %w", err)
+	}
+
+	// 初始化 Wiki/Index
+	_, err = adapter.UpdateWikiOfRepo(appId, planId, "Index", planTitle)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create wiki: %w", err)
+	}
+
+	return repo, nil
+}
+
+// CreatePhase
+// appId: e.g. cms-mgr
+// planId: e.g. PLAN-102
+// phaseName: e.g. "Upload-Image"
+func CreatePhase(appId, planId, phaseName string) (*gitea.Milestone, error) {
+	nextPhaseId, err := GenNextPhaseId(appId, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	title := fmt.Sprintf("%s: %s", nextPhaseId, phaseName)
+
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+
+	milestone, err := adapter.CreateMilestone(appId, planId, title)
+	if err != nil {
+		return nil, err
+	}
+
+	issue, err := adapter.CreateIssue(appId, planId, title, "")
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取 Label 并添加到 Issue
+	label, err := adapter.GetLabelByName(appId, planId, "PHASE-TODO")
+	if err != nil {
+		return nil, err
+	}
+
+	// 即 Issue.Number
+	_, err = adapter.AddLabelToIssue(appId, planId, fmt.Sprintf("%d", issue.Index), fmt.Sprintf("%d", label.ID))
+	if err != nil {
+		return nil, err
+	}
+
+	return milestone, nil
+}
+
+// CreateTask 创建 Task
+// appId: e.g. cms-mgr
+// planId: e.g. PLAN-102
+// phaseId: e.g. PHASE-200
+// taskName: e.g. "Integrate @adobe/editor"
+func CreateTask(appId, planId, phaseId string, taskName string) (*gitea.Issue, error) {
+	milestoneId, err := TranslatePhaseId2MilestoneId(appId, planId, phaseId)
+	if err != nil {
+		return nil, err
+	}
+
+	nextTaskId, err := GenNextTaskId(appId, planId, phaseId)
+	if err != nil {
+		return nil, err
+	}
+
+	title := fmt.Sprintf("%s: %s", nextTaskId, taskName)
+
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	issue, err := adapter.CreateIssue(appId, planId, title, milestoneId)
+	if err != nil {
+		return nil, err
+	}
+
+	label, err := adapter.GetLabelByName(appId, planId, "TASK-TODO")
+	if err != nil {
+		return nil, err
+	}
+
+	// 即 Issue.Number
+	_, err = adapter.AddLabelToIssue(appId, planId, fmt.Sprintf("%d", issue.Index), fmt.Sprintf("%d", label.ID))
+	if err != nil {
+		return nil, err
+	}
+
+	return issue, nil
 }

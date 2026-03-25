@@ -65,21 +65,22 @@ func (a *Adapter) SearchRepoIssues(owner, repoName string, searchOptions gitea.L
 	return issues, err
 }
 
+// DeleteIssueOfRepo 删除仓库指定 Issue
+func (a *Adapter) DeleteIssueOfRepo(owner, repo, issueId string) (interface{}, error) {
+	var issueIdInt int64
+	fmt.Sscanf(issueId, "%d", &issueIdInt)
+
+	_, err := a.client.DeleteIssue(owner, repo, issueIdInt)
+	if err != nil {
+		return nil, err
+	}
+	return map[string]interface{}{"code": 0, "message": "ok"}, nil
+}
+
 // ListMilestoneOfRepo 列出仓库 Milestone 列表
 func (a *Adapter) ListMilestoneOfRepo(owner, repo string) ([]*gitea.Milestone, error) {
 	milestones, _, err := a.client.ListRepoMilestones(owner, repo, gitea.ListMilestoneOption{})
 	return milestones, err
-}
-
-// CreateRepo 创建仓库
-// 以当前持有 Token 的 owner 为准
-func (a *Adapter) CreateRepo(name string) (*gitea.Repository, error) {
-	repo, _, err := a.client.CreateRepo(gitea.CreateRepoOption{
-		Name:        name,
-		Description: "",
-		Private:     false,
-	})
-	return repo, err
 }
 
 // TransferRepo 转移仓库
@@ -128,6 +129,51 @@ func (a *Adapter) CreateIssue(owner, repo, title string, milestoneId string) (*g
 	}
 	issue, _, err := a.client.CreateIssue(owner, repo, opts)
 	return issue, err
+}
+
+// AddLabelToIssue 为 Issue 添加 Label
+// issueId: Issue 的数字 ID（字符串形式）
+// labelId: Label 的数字 ID（字符串形式）
+func (a *Adapter) AddLabelToIssue(owner, repo, issueId, labelId string) ([]*gitea.Label, error) {
+	var issueIdInt, labelIdInt int64
+	fmt.Sscanf(issueId, "%d", &issueIdInt)
+	fmt.Sscanf(labelId, "%d", &labelIdInt)
+
+	labels, _, err := a.client.AddIssueLabels(owner, repo, issueIdInt, gitea.IssueLabelsOption{
+		Labels: []int64{labelIdInt},
+	})
+	return labels, err
+}
+
+// ClearLabelFromIssue 清除 Issue 的 Label
+// issueId: Issue 的数字 ID（字符串形式）
+// labelId: Label 的数字 ID（字符串形式）
+func (a *Adapter) ClearLabelFromIssue(owner, repo, issueId, labelId string) error {
+	var issueIdInt, labelIdInt int64
+	fmt.Sscanf(issueId, "%d", &issueIdInt)
+	fmt.Sscanf(labelId, "%d", &labelIdInt)
+
+	_, err := a.client.ClearIssueLabels(owner, repo, issueIdInt)
+	return err
+}
+
+// GetLabelByName 根据名称获取 Label
+// owner: 仓库所有者
+// repo: 仓库名称
+// labelName: Label 名称
+func (a *Adapter) GetLabelByName(owner, repo, labelName string) (*gitea.Label, error) {
+	labels, _, err := a.client.ListRepoLabels(owner, repo, gitea.ListLabelsOptions{})
+	if err != nil {
+		return nil, err
+	}
+
+	for _, label := range labels {
+		if label.Name == labelName {
+			return label, nil
+		}
+	}
+
+	return nil, fmt.Errorf("label not found: %s", labelName)
 }
 
 // ListWikiOfRepo 列出仓库 Wiki 列表

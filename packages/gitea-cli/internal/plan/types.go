@@ -38,3 +38,22 @@ type Task struct {
 	Context string     `json:"context"`
 	Gitea   GiteaExtra `json:"gitea"`
 }
+
+// Status 任务状态枚举
+type Status string
+
+const (
+	StatusPass   Status = "PASS"
+	StatusFail   Status = "FAIL"
+	StatusTodo   Status = "TODO"
+	StatusHold   Status = "HOLD"
+	StatusUnknown Status = "UNKNOWN"
+)
+
+// StatusColor 状态与颜色映射
+var StatusColor = map[Status]string{
+	StatusPass:   "#009800",
+	StatusFail:   "#e11d21",
+	StatusTodo:   "#fbca04",
+	StatusHold:   "#fef2c0",
+}
