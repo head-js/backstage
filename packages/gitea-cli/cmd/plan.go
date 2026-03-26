@@ -100,7 +100,7 @@ func init() {
 	})
 
 	planRouter.Verb("LIST", "/:appId/:planId/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return listTaskOfPhase(params["appId"], params["planId"], params["phase"])
+		return plan.ListTaskOfPhase(params["appId"], params["planId"], params["phase"])
 	})
 
 	planRouter.Verb("POST", "/:appId/:planId/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -111,7 +111,7 @@ func init() {
 	})
 
 	planRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return showTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
+		return plan.ShowTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
 	})
 
 	// Backstage Plan - World Model
@@ -187,7 +187,11 @@ func showPlan(appId, planId string) (interface{}, error) {
 
 // listPhaseOfPlan 获取指定 Plan 下的所有 Phases
 func listPhaseOfPlan(appId, planId string) ([]plan.Phase, error) {
-	milestones, err := internalGitea.ListMilestoneOfRepo(appId, planId)
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+	milestones, err := adapter.ListMilestoneOfRepo(appId, planId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
 	}
@@ -201,43 +205,6 @@ func listPhaseOfPlan(appId, planId string) ([]plan.Phase, error) {
 	})
 
 	return phases, nil
-}
-
-// listTaskOfPhase 获取指定 Phase 下的所有 Tasks
-func listTaskOfPhase(appId, planId, phaseId string) ([]plan.Task, error) {
-	milestoneId, err := plan.TranslatePhaseId2MilestoneId(appId, planId, phaseId)
-	if err != nil {
-		return nil, err
-	}
-
-	issues, err := internalGitea.ListIssueOfMilestone(appId, planId, milestoneId)
-	if err != nil {
-		return nil, err
-	}
-
-	translator := plan.NewPlanTranslator()
-	tasks := translator.TranslateIssueList2TaskList(issues)
-
-	// 按 Task.Id 升序排序
-	slices.SortFunc(tasks, func(a, b plan.Task) int {
-		return cmp.Compare(a.Id, b.Id)
-	})
-
-	return tasks, nil
-}
-
-func showTask(appId, planId, phaseId, taskId string) (*plan.Task, error) {
-	tasks, err := listTaskOfPhase(appId, planId, phaseId)
-	if err != nil {
-		return nil, err
-	}
-	for _, t := range tasks {
-		if t.Id == taskId {
-			task := t
-			return &task, nil
-		}
-	}
-	return nil, fmt.Errorf("task not found")
 }
 
 // markdownCurrentPhase 获取当前 Phase 的 Markdown 展示
@@ -268,7 +235,7 @@ func markdownCurrentPhase(appId, planId string) (interface{}, error) {
 	}
 
 	// 获取该 Phase 下的所有 Tasks
-	tasks, err := listTaskOfPhase(appId, planId, currentPhase.Id)
+	tasks, err := plan.ListTaskOfPhase(appId, planId, currentPhase.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tasks: %w", err)
 	}
@@ -296,7 +263,7 @@ func markdownCurrentTask(appId, planId string) (interface{}, error) {
 	currentPhase := &phases[0]
 
 	// 获取该 Phase 下的所有 Tasks
-	tasks, err := listTaskOfPhase(appId, planId, currentPhase.Id)
+	tasks, err := plan.ListTaskOfPhase(appId, planId, currentPhase.Id)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch tasks: %w", err)
 	}

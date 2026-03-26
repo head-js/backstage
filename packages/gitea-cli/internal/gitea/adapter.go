@@ -65,6 +65,14 @@ func (a *Adapter) SearchRepoIssues(owner, repoName string, searchOptions gitea.L
 	return issues, err
 }
 
+func (a *Adapter) GetIssueOfRepo(owner, repoName, issueNo string) (*gitea.Issue, error) {
+	var issueNoInt int64
+	fmt.Sscanf(issueNo, "%d", &issueNoInt)
+
+	issue, _, err := a.client.GetIssue(owner, repoName, issueNoInt)
+	return issue, err
+}
+
 // DeleteIssueOfRepo 删除仓库指定 Issue
 func (a *Adapter) DeleteIssueOfRepo(owner, repo, issueId string) (interface{}, error) {
 	var issueIdInt int64
@@ -75,6 +83,18 @@ func (a *Adapter) DeleteIssueOfRepo(owner, repo, issueId string) (interface{}, e
 		return nil, err
 	}
 	return map[string]interface{}{"code": 0, "message": "ok"}, nil
+}
+
+// ListCommentOfIssue 列出 Issue 的评论列表
+// owner: 仓库所有者
+// repo: 仓库名称
+// issueId: Issue 的数字 ID（字符串形式）
+func (a *Adapter) ListCommentOfIssue(owner, repo, issueNo string) ([]*gitea.Comment, error) {
+	var issueNoInt int64
+	fmt.Sscanf(issueNo, "%d", &issueNoInt)
+
+	comments, _, err := a.client.ListIssueComments(owner, repo, issueNoInt, gitea.ListIssueCommentOptions{})
+	return comments, err
 }
 
 // ListMilestoneOfRepo 列出仓库 Milestone 列表

@@ -2,8 +2,11 @@ package plan
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 	"time"
+
+	"cmp"
 
 	"code.gitea.io/sdk/gitea"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
@@ -12,7 +15,11 @@ import (
 // TranslatePhaseId2MilestoneId 根据 phaseId (如 PHASE-01) 查找对应的 Gitea Milestone numeric ID
 // 流程：调用 api 获取 milestones → 遍历匹配 title 前缀（忽略大小写）
 func TranslatePhaseId2MilestoneId(appName, planName, phaseId string) (string, error) {
-	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return "", err
+	}
+	milestones, err := adapter.ListMilestoneOfRepo(appName, planName)
 	if err != nil {
 		return "", err
 	}
@@ -43,20 +50,33 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 		return nil, err
 	}
 
-	milestones, err := internalGitea.ListMilestoneOfRepo(appId, planId)
+	milestones, err := adapter.ListMilestoneOfRepo(appId, planId)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
 	}
 
 	phases := translator.TranslateMilestoneList2PhaseList(milestones)
 
-	// TODO: 实现 Plan 同步到 Wiki 的逻辑
-	// 2. 获取每个 Phase 的所有 Task
-	// 3. 将 Plan、Phase、Task 的信息同步到 Gitea Wiki
+	// 获取每个 Phase 的所有 Task
+	for i := range phases {
+		tasks, err := ListTaskOfPhase(appId, planId, phases[i].Id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list tasks for phase %s: %w", phases[i].Id, err)
+		}
+		phases[i].Tasks = tasks
+	}
 
 	var phasesMarkdown strings.Builder
 	for _, p := range phases {
 		phasesMarkdown.WriteString(fmt.Sprintf("### %s\n\n", p.Name))
+		// 输出该 Phase 下的所有 Tasks
+		for _, t := range p.Tasks {
+			checkbox := "[ ]"
+			if t.Status == "PASS" {
+				checkbox = "[x]"
+			}
+			phasesMarkdown.WriteString(fmt.Sprintf("- %s %s: %s\n\n", checkbox, t.Id, t.Name))
+		}
 	}
 
 	markdown := fmt.Sprintf(`# %s: %s
@@ -67,8 +87,8 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 
 %s`, plan.Id, plan.Name, time.Now().Format("2006-01-02 15:04:05"), phasesMarkdown.String())
 
-	// 约定保存在 Wiki/Index
-	_, err = adapter.UpdateWikiOfRepo(appId, planId, "Index", markdown)
+	// 约定保存在 Wiki/Home
+	_, err = adapter.UpdateWikiOfRepo(appId, planId, "Home", markdown)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update wiki: %w", err)
 	}
@@ -122,8 +142,8 @@ func CreatePlan(appId, planTitle string) (*gitea.Repository, error) {
 		return nil, fmt.Errorf("failed to create issue: %w", err)
 	}
 
-	// 初始化 Wiki/Index
-	_, err = adapter.UpdateWikiOfRepo(appId, planId, "Index", planTitle)
+	// 初始化 Wiki/Home
+	_, err = adapter.UpdateWikiOfRepo(appId, planId, "Home", planTitle)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create wiki: %w", err)
 	}
@@ -212,4 +232,70 @@ func CreateTask(appId, planId, phaseId string, taskName string) (*gitea.Issue, e
 	}
 
 	return issue, nil
+}
+
+// ListTaskOfPhase 获取指定 Phase 下的所有 Tasks
+func ListTaskOfPhase(appId, planId, phaseId string) ([]Task, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	milestoneId, err := TranslatePhaseId2MilestoneId(appId, planId, phaseId)
+	if err != nil {
+		return nil, err
+	}
+
+	issues, err := adapter.SearchRepoIssues(appId, planId, gitea.ListIssueOption{
+		Milestones: []string{milestoneId},
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	translator := NewPlanTranslator()
+	tasks := translator.TranslateIssueList2TaskList(issues)
+
+	// 按 Task.Id 升序排序
+	slices.SortFunc(tasks, func(a, b Task) int {
+		return cmp.Compare(a.Id, b.Id)
+	})
+
+	return tasks, nil
+}
+
+// ShowPhase 获取指定 Phase 详情
+func ShowPhase(appId, planId, phaseId string) (*Phase, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	issue, err := adapter.ShowIssueOfRepoByPrefix(appId, planId, phaseId)
+	if err != nil {
+		return nil, err
+	}
+
+	translator := NewPlanTranslator()
+	phase, err := translator.TranslateIssue2Phase(issue)
+	if err != nil {
+		return nil, err
+	}
+
+	return phase, nil
+}
+
+// ShowTask 获取指定 Task 详情
+func ShowTask(appId, planId, phaseId, taskId string) (*Task, error) {
+	tasks, err := ListTaskOfPhase(appId, planId, phaseId)
+	if err != nil {
+		return nil, err
+	}
+	for _, t := range tasks {
+		if t.Id == taskId {
+			task := t
+			return &task, nil
+		}
+	}
+	return nil, fmt.Errorf("task not found")
 }

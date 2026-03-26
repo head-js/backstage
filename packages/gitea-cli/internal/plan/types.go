@@ -4,6 +4,7 @@ package plan
 type GiteaExtra struct {
 	Type        string   `json:"type"`        // "REPO" | "MILESTONE" | "ISSUE"
 	Id          int64    `json:"id"`          // Gitea 对象 ID
+	No          int64    `json:"no"`          // Issue Number
 	Name        string   `json:"name"`        // 名称
 	Description string   `json:"description"` // 描述
 	Body        string   `json:"body"`
@@ -43,17 +44,17 @@ type Task struct {
 type Status string
 
 const (
-	StatusPass   Status = "PASS"
-	StatusFail   Status = "FAIL"
-	StatusTodo   Status = "TODO"
-	StatusHold   Status = "HOLD"
+	StatusPass    Status = "PASS"
+	StatusFail    Status = "FAIL"
+	StatusTodo    Status = "TODO"
+	StatusHold    Status = "HOLD"
 	StatusUnknown Status = "UNKNOWN"
 )
 
 // StatusColor 状态与颜色映射
 var StatusColor = map[Status]string{
-	StatusPass:   "#009800",
-	StatusFail:   "#e11d21",
-	StatusTodo:   "#fbca04",
-	StatusHold:   "#fef2c0",
+	StatusPass: "#009800",
+	StatusFail: "#e11d21",
+	StatusTodo: "#fbca04",
+	StatusHold: "#fef2c0",
 }

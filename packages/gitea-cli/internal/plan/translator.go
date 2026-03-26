@@ -119,6 +119,55 @@ func (pt *PlanTranslator) ExtractPhaseId(milestoneTitle string) (string, string,
 	return extractPhaseId(milestoneTitle)
 }
 
+// TranslateIssue2Phase 将单个 Gitea Issue 转换为 Phase
+func (pt *PlanTranslator) TranslateIssue2Phase(issue *gitea.Issue) (*Phase, error) {
+	phaseId, _, err := extractPhaseId(issue.Title)
+	if err != nil {
+		return nil, err
+	}
+
+	updatedAt := ""
+	if !issue.Updated.IsZero() {
+		updatedAt = issue.Updated.Format(time.RFC3339)
+	}
+
+	// 提取 Label 名称列表，并根据 Label 设置 Status
+	var labelNames []string
+	status := "UNKNOWN"
+	for _, label := range issue.Labels {
+		if label != nil && strings.HasPrefix(label.Name, "PHASE-") {
+			labelNames = append(labelNames, label.Name)
+			// 根据 Label 设置 Status
+			switch label.Name {
+			case "PHASE-TODO":
+				status = "TODO"
+			case "PHASE-HOLD":
+				status = "HOLD"
+			case "PHASE-PASS":
+				status = "PASS"
+			case "PHASE-FAIL":
+				status = "FAIL"
+			}
+		}
+	}
+
+	return &Phase{
+		Id:     phaseId,
+		Name:   issue.Title,
+		Status: status,
+		Tasks:  []Task{},
+		Gitea: GiteaExtra{
+			Type:        "ISSUE",
+			Id:          issue.ID,
+			Name:        issue.Title,
+			State:       string(issue.State),
+			Labels:      labelNames,
+			CreatedAt:   issue.Created.Format(time.RFC3339),
+			UpdatedAt:   updatedAt,
+		},
+	}, nil
+}
+
 // TranslateMilestone2Phase 将单个 Gitea Milestone 转换为 Phase（只含 id 和 name）
 func (pt *PlanTranslator) TranslateMilestone2Phase(m *gitea.Milestone) Phase {
 	phaseId, _, err := extractPhaseId(m.Title)
@@ -132,19 +181,10 @@ func (pt *PlanTranslator) TranslateMilestone2Phase(m *gitea.Milestone) Phase {
 		updatedAt = m.Updated.Format(time.RFC3339)
 	}
 
-	// 根据 Milestone State 设置 Status
-	status := "UNKNOWN"
-	switch m.State {
-	case "open":
-		status = "TODO"
-	case "closed":
-		status = "PASS"
-	}
-
 	return Phase{
 		Id:     phaseId,
 		Name:   m.Title,
-		Status: status,
+		Status: "UNKNOWN", // Phase 的 status 由同名 Issue 控制，和 Milestone 无关
 		Tasks:  []Task{},
 		Gitea: GiteaExtra{
 			Type:        "MILESTONE",
@@ -220,6 +260,7 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 		Gitea: GiteaExtra{
 			Type:      "ISSUE",
 			Id:        issue.ID,
+			No:        issue.Index,
 			Name:      issue.Title,
 			Body:      issue.Body,
 			State:     string(issue.State),

@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strconv"
 
+	"code.gitea.io/sdk/gitea"
+
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 )
 
@@ -13,7 +15,11 @@ import (
 // planName: Plan 名称
 // 返回 Phase 编号字符串（如 "PHASE-200"）
 func GenNextPhaseId(appName, planName string) (string, error) {
-	milestones, err := internalGitea.ListMilestoneOfRepo(appName, planName)
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return "", err
+	}
+	milestones, err := adapter.ListMilestoneOfRepo(appName, planName)
 	if err != nil {
 		return "", err
 	}
@@ -49,12 +55,19 @@ func GenNextPhaseId(appName, planName string) (string, error) {
 // phaseId: Phase ID（如 PHASE-01）
 // 返回 Task 编号字符串（如 "TASK-120"）
 func GenNextTaskId(appName, planName, phaseId string) (string, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return "", err
+	}
+
 	milestoneId, err := TranslatePhaseId2MilestoneId(appName, planName, phaseId)
 	if err != nil {
 		return "", err
 	}
 
-	issues, err := internalGitea.ListIssueOfMilestone(appName, planName, milestoneId)
+	issues, err := adapter.SearchRepoIssues(appName, planName, gitea.ListIssueOption{
+		Milestones: []string{milestoneId},
+	})
 	if err != nil {
 		return "", err
 	}
