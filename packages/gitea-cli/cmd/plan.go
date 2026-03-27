@@ -2,10 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"slices"
 	"strings"
-
-	"cmp"
 
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"com.lisitede.backstage.gitea/internal/plan"
@@ -89,7 +86,7 @@ func init() {
 	})
 
 	planRouter.Verb("LIST", "/:appId/:planId/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return listPhaseOfPlan(params["appId"], params["planId"])
+		return plan.ListPhaseOfPlan(params["appId"], params["planId"])
 	})
 
 	planRouter.Verb("POST", "/:appId/:planId/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -112,11 +109,6 @@ func init() {
 
 	planRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return plan.ShowTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
-	})
-
-	// Backstage Plan - World Model
-	planRouter.Verb("MARKDOWN", "/:appId/:planId/current-phase", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return markdownCurrentPhase(params["appId"], params["planId"])
 	})
 
 	planRouter.Verb("MARKDOWN", "/:appId/:planId/current-task", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -185,72 +177,11 @@ func showPlan(appId, planId string) (interface{}, error) {
 	return p, nil
 }
 
-// listPhaseOfPlan 获取指定 Plan 下的所有 Phases
-func listPhaseOfPlan(appId, planId string) ([]plan.Phase, error) {
-	adapter, err := internalGitea.NewAdapter()
-	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
-	}
-	milestones, err := adapter.ListMilestoneOfRepo(appId, planId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
-	}
-
-	translator := plan.NewPlanTranslator()
-	phases := translator.TranslateMilestoneList2PhaseList(milestones)
-
-	// 按 Phase.Id 升序排序
-	slices.SortFunc(phases, func(a, b plan.Phase) int {
-		return cmp.Compare(a.Id, b.Id)
-	})
-
-	return phases, nil
-}
-
-// markdownCurrentPhase 获取当前 Phase 的 Markdown 展示
-// 筛选出状态为 TODO/UNKNOWN 的 Phase，取第一个
-func markdownCurrentPhase(appId, planId string) (interface{}, error) {
-	// listPhaseOfPlan 已按 Phase.Id 升序排序
-	phases, err := listPhaseOfPlan(appId, planId)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(phases) == 0 {
-		return "No phases found", nil
-	}
-
-	// 筛选出状态为 TODO/UNKNOWN 的 Phase，取第一个
-	var currentPhase *plan.Phase
-	for _, p := range phases {
-		if p.Status == "TODO" || p.Status == "UNKNOWN" {
-			currentPhase = &p
-			break
-		}
-	}
-
-	// 如果没有符合条件的 Phase，返回空
-	if currentPhase == nil {
-		return "No pending phases found", nil
-	}
-
-	// 获取该 Phase 下的所有 Tasks
-	tasks, err := plan.ListTaskOfPhase(appId, planId, currentPhase.Id)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch tasks: %w", err)
-	}
-
-	currentPhase.Tasks = tasks
-
-	// 转换为 Markdown
-	return plan.TranslatePhase2Markdown(*currentPhase), nil
-}
-
 // markdownCurrentTask 获取当前 Task 的 Markdown 展示
 // 取第一个 Phase 的第一个 Task（目前没有状态管理，先取第一个）
 func markdownCurrentTask(appId, planId string) (interface{}, error) {
 	// 获取 Phases（已按 Phase.Id 升序排序）
-	phases, err := listPhaseOfPlan(appId, planId)
+	phases, err := plan.ListPhaseOfPlan(appId, planId)
 	if err != nil {
 		return nil, err
 	}

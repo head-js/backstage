@@ -1,11 +1,13 @@
 package plan
 
+import "fmt"
+
 // GiteaExtra Gitea 对象的附加信息（Repo / Milestone 通用）
 type GiteaExtra struct {
-	Type        string   `json:"type"`        // "REPO" | "MILESTONE" | "ISSUE"
-	Id          int64    `json:"id"`          // Gitea 对象 ID
-	No          int64    `json:"no"`          // Issue Number
-	Name        string   `json:"name"`        // 名称
+	Type        string   `json:"type"` // "REPO" | "MILESTONE" | "ISSUE"
+	Id          int64    `json:"id"`   // Gitea 对象 ID
+	No          int64    `json:"no"`   // Issue Number
+	Title       string   `json:"title"`
 	Description string   `json:"description"` // 描述
 	Body        string   `json:"body"`
 	State       string   `json:"state"`
@@ -18,14 +20,16 @@ type GiteaExtra struct {
 type Plan struct {
 	Id     string     `json:"id"`
 	Name   string     `json:"name"`
+	Title  string     `json:"title"`
 	Phases []Phase    `json:"phases"`
 	Gitea  GiteaExtra `json:"gitea"`
 }
 
 // Phase 阶段（对应 Gitea Milestone）
 type Phase struct {
-	Id     string     `json:"id"`              // Phase-xx 格式
-	Name   string     `json:"name"`            // 阶段名称
+	Id     string     `json:"id"`
+	Name   string     `json:"name"`
+	Title  string     `json:"title"`
 	Status string     `json:"status"`          // 状态：TODO / SUCCESS / UNKNOWN
 	Tasks  []Task     `json:"tasks,omitempty"` // 任务列表
 	Gitea  GiteaExtra `json:"gitea"`           // Gitea Milestone 信息
@@ -35,6 +39,7 @@ type Phase struct {
 type Task struct {
 	Id      string     `json:"id"`
 	Name    string     `json:"name"`
+	Title   string     `json:"title"`
 	Status  string     `json:"status"` // 状态：TODO / SUCCESS / FAIL / UNKNOWN
 	Context string     `json:"context"`
 	Gitea   GiteaExtra `json:"gitea"`
@@ -50,6 +55,24 @@ const (
 	StatusHold    Status = "HOLD"
 	StatusUnknown Status = "UNKNOWN"
 )
+
+var allStatus = []Status{StatusPass, StatusFail, StatusTodo, StatusHold, StatusUnknown}
+
+// IsValid 检查状态是否合法
+func (s Status) IsValid() bool {
+	for _, v := range allStatus {
+		if s == v {
+			return true
+		}
+	}
+	return false
+}
+
+// Translate2Label 将状态转换为 Label 名称
+// prefix: 前缀，如 "TASK"，返回 "TASK-PASS" / "TASK-FAIL" / "TASK-TODO" / "TASK-HOLD" / "TASK-UNKNOWN"
+func (s Status) Translate2Label(prefix string) string {
+	return fmt.Sprintf("%s-%s", prefix, s)
+}
 
 // StatusColor 状态与颜色映射
 var StatusColor = map[Status]string{

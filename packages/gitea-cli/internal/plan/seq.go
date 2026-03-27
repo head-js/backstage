@@ -11,24 +11,20 @@ import (
 )
 
 // GenNextPhaseId 生成下一个 Phase 编号
-// appName: 应用名称
-// planName: Plan 名称
 // 返回 Phase 编号字符串（如 "PHASE-200"）
-func GenNextPhaseId(appName, planName string) (string, error) {
+func GenNextPhaseId(appName, planId string) (string, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
 		return "", err
 	}
-	milestones, err := adapter.ListMilestoneOfRepo(appName, planName)
+	milestones, err := adapter.ListMilestoneOfRepo(appName, planId)
 	if err != nil {
 		return "", err
 	}
 
-	// 使用 translator 提取每个 milestone 的 phase ID
-	translator := NewPlanTranslator()
 	var ids []string
 	for _, m := range milestones {
-		_, id, err := translator.ExtractPhaseId(m.Title)
+		_, _, id, err := ExtractPhaseId(m.Title)
 		if err != nil {
 			fmt.Printf("Warning: invalid phase naming for milestone %s: %v\n", m.Title, err)
 			continue
@@ -54,18 +50,18 @@ func GenNextPhaseId(appName, planName string) (string, error) {
 // planName: Plan 名称
 // phaseId: Phase ID（如 PHASE-01）
 // 返回 Task 编号字符串（如 "TASK-120"）
-func GenNextTaskId(appName, planName, phaseId string) (string, error) {
+func GenNextTaskId(appName, planId, phaseId string) (string, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
 		return "", err
 	}
 
-	milestoneId, err := TranslatePhaseId2MilestoneId(appName, planName, phaseId)
+	milestoneId, err := TranslatePhaseId2MilestoneId(appName, planId, phaseId)
 	if err != nil {
 		return "", err
 	}
 
-	issues, err := adapter.SearchRepoIssues(appName, planName, gitea.ListIssueOption{
+	issues, err := adapter.SearchRepoIssues(appName, planId, gitea.ListIssueOption{
 		Milestones: []string{milestoneId},
 	})
 	if err != nil {
@@ -75,7 +71,7 @@ func GenNextTaskId(appName, planName, phaseId string) (string, error) {
 	// 调用 translator 把 issue.title 转成我们业务定义的 taskId
 	var ids []string
 	for _, issue := range issues {
-		_, id, err := ExtractTaskId(issue.Title)
+		_, _, id, err := ExtractTaskId(issue.Title)
 		if err != nil {
 			fmt.Printf("Warning: invalid task naming for issue %s: %v\n", issue.Title, err)
 			continue

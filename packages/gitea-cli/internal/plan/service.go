@@ -9,6 +9,7 @@ import (
 	"cmp"
 
 	"code.gitea.io/sdk/gitea"
+	"com.lisitede.backstage.gitea/framework"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 )
 
@@ -50,12 +51,20 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 		return nil, err
 	}
 
-	milestones, err := adapter.ListMilestoneOfRepo(appId, planId)
+	// 通过搜索 PHASE-* 前缀的 Issues 获取 Phases
+	issues, err := adapter.SearchIssueByPrefix(appId, planId, "PHASE-")
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch milestones: %w", err)
+		return nil, fmt.Errorf("failed to search phases: %w", err)
 	}
 
-	phases := translator.TranslateMilestoneList2PhaseList(milestones)
+	var phases []Phase
+	for _, issue := range issues {
+		phase, err := translator.TranslateIssue2Phase(issue)
+		if err != nil {
+			return nil, fmt.Errorf("failed to translate issue to phase: %w", err)
+		}
+		phases = append(phases, *phase)
+	}
 
 	// 获取每个 Phase 的所有 Task
 	for i := range phases {
@@ -93,17 +102,14 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 		return nil, fmt.Errorf("failed to update wiki: %w", err)
 	}
 
-	return map[string]interface{}{
-		"code":    0,
-		"message": "ok",
-	}, nil
+	return framework.RestOK, nil
 }
 
 // CreatePlan
 // appId: e.g. cms-mgr
 // planTitle: e.g. "PLAN-102: UploadImage"
-func CreatePlan(appId, planTitle string) (*gitea.Repository, error) {
-	planId, err := ExtractPlanId(planTitle)
+func CreatePlan(appId, planTitle string) (*Plan, error) {
+	planId, _, err := ExtractPlanId(planTitle)
 	if err != nil {
 		return nil, fmt.Errorf("invalid plan name: %w", err)
 	}
@@ -114,7 +120,7 @@ func CreatePlan(appId, planTitle string) (*gitea.Repository, error) {
 	}
 
 	// 初始化 Repo
-	repo, err := adapter.CreateRepo(appId, planId, planTitle)
+	_, err = adapter.CreateRepo(appId, planId, planTitle)
 	if err != nil {
 		return nil, err
 	}
@@ -138,7 +144,8 @@ func CreatePlan(appId, planTitle string) (*gitea.Repository, error) {
 	}
 
 	// 初始化 Issue for Plan
-	if _, err := adapter.CreateIssue(appId, planId, planTitle, ""); err != nil {
+	issue, err := adapter.CreateIssue(appId, planId, planTitle, "")
+	if err != nil {
 		return nil, fmt.Errorf("failed to create issue: %w", err)
 	}
 
@@ -148,14 +155,21 @@ func CreatePlan(appId, planTitle string) (*gitea.Repository, error) {
 		return nil, fmt.Errorf("failed to create wiki: %w", err)
 	}
 
-	return repo, nil
+	translator := NewPlanTranslator()
+	var newPlan *Plan
+	newPlan, err = translator.TranslateIssue2Plan(issue)
+	if err != nil {
+		return nil, fmt.Errorf("failed to translate issue to plan: %w", err)
+	}
+
+	return newPlan, nil
 }
 
-// CreatePhase
+// CreatePhase 创建 Phase
 // appId: e.g. cms-mgr
 // planId: e.g. PLAN-102
 // phaseName: e.g. "Upload-Image"
-func CreatePhase(appId, planId, phaseName string) (*gitea.Milestone, error) {
+func CreatePhase(appId, planId, phaseName string) (*Phase, error) {
 	nextPhaseId, err := GenNextPhaseId(appId, planId)
 	if err != nil {
 		return nil, err
@@ -168,7 +182,7 @@ func CreatePhase(appId, planId, phaseName string) (*gitea.Milestone, error) {
 		return nil, fmt.Errorf("failed to create adapter: %w", err)
 	}
 
-	milestone, err := adapter.CreateMilestone(appId, planId, title)
+	_, err = adapter.CreateMilestone(appId, planId, title)
 	if err != nil {
 		return nil, err
 	}
@@ -190,7 +204,11 @@ func CreatePhase(appId, planId, phaseName string) (*gitea.Milestone, error) {
 		return nil, err
 	}
 
-	return milestone, nil
+	// 使用 translator 创建 Phase 对象
+	translator := NewPlanTranslator()
+	phase, _ := translator.TranslateIssue2Phase(issue)
+
+	return phase, nil
 }
 
 // CreateTask 创建 Task
@@ -198,7 +216,7 @@ func CreatePhase(appId, planId, phaseName string) (*gitea.Milestone, error) {
 // planId: e.g. PLAN-102
 // phaseId: e.g. PHASE-200
 // taskName: e.g. "Integrate @adobe/editor"
-func CreateTask(appId, planId, phaseId string, taskName string) (*gitea.Issue, error) {
+func CreateTask(appId, planId, phaseId string, taskName string) (*Task, error) {
 	milestoneId, err := TranslatePhaseId2MilestoneId(appId, planId, phaseId)
 	if err != nil {
 		return nil, err
@@ -231,7 +249,10 @@ func CreateTask(appId, planId, phaseId string, taskName string) (*gitea.Issue, e
 		return nil, err
 	}
 
-	return issue, nil
+	translator := NewPlanTranslator()
+	task := translator.TranslateIssue2Task(issue)
+
+	return &task, nil
 }
 
 // ListTaskOfPhase 获取指定 Phase 下的所有 Tasks
@@ -271,7 +292,7 @@ func ShowPhase(appId, planId, phaseId string) (*Phase, error) {
 		return nil, err
 	}
 
-	issue, err := adapter.ShowIssueOfRepoByPrefix(appId, planId, phaseId)
+	issue, err := adapter.ShowIssueById(appId, planId, phaseId)
 	if err != nil {
 		return nil, err
 	}
@@ -298,4 +319,35 @@ func ShowTask(appId, planId, phaseId, taskId string) (*Task, error) {
 		}
 	}
 	return nil, fmt.Errorf("task not found")
+}
+
+// ListPhaseOfPlan 获取指定 Plan 下的所有 Phases
+func ListPhaseOfPlan(appId, planId string) ([]Phase, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create adapter: %w", err)
+	}
+
+	// 通过搜索 PHASE-* 前缀的 Issues 获取 Phases
+	issues, err := adapter.SearchIssueByPrefix(appId, planId, "PHASE-")
+	if err != nil {
+		return nil, fmt.Errorf("failed to search phases: %w", err)
+	}
+
+	translator := NewPlanTranslator()
+	var phases []Phase
+	for _, issue := range issues {
+		phase, err := translator.TranslateIssue2Phase(issue)
+		if err != nil {
+			return nil, fmt.Errorf("failed to translate issue to phase: %w", err)
+		}
+		phases = append(phases, *phase)
+	}
+
+	// 按 Phase.Id 升序排序
+	slices.SortFunc(phases, func(a, b Phase) int {
+		return cmp.Compare(a.Id, b.Id)
+	})
+
+	return phases, nil
 }

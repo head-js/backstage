@@ -9,6 +9,12 @@ import (
 
 var agentRouter Router
 
+// agentUpdateFlags 用于更新 Task 的 flags
+var agentUpdateFlags struct {
+	status  string
+	context string
+}
+
 var agentCmd = &cobra.Command{
 	Use:   "agent <method> <path>",
 	Short: "Agent-optimized API for Plan / Phase / Task operations.",
@@ -31,7 +37,17 @@ Examples:
 		method := strings.ToUpper(args[0])
 		path := args[1]
 
-		result, err := agentRouter.Invoke(method, path, map[string]string{})
+		// 构建 args 映射
+		argsMap := map[string]string{}
+		if agentUpdateFlags.status != "" {
+			argsMap["status"] = agentUpdateFlags.status
+		}
+		if agentUpdateFlags.context != "" {
+			argsMap["context"] = agentUpdateFlags.context
+		}
+
+		// 调用路由
+		result, err := agentRouter.Invoke(method, path, argsMap)
 		if err != nil {
 			return outputError(err)
 		}
@@ -45,6 +61,24 @@ func init() {
 	agentRouter.Verb("GET", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return internalAgent.GetPlan(params["appId"], params["planId"])
 	})
+
+	agentRouter.Verb("HEAD", "/:appId/:planId/current-phase", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.HeadCurrentPhase(params["appId"], params["planId"])
+	})
+
+	agentRouter.Verb("GET", "/:appId/:planId/current-phase", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.GetCurrentPhase(params["appId"], params["planId"])
+	})
+
+	agentRouter.Verb("HEAD", "/:appId/:planId/:phaseId/current-task", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.HeadCurrentTask(params["appId"], params["planId"], params["phaseId"])
+	})
+
+	agentRouter.Verb("GET", "/:appId/:planId/:phaseId/current-task", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.GetCurrentTask(params["appId"], params["planId"], params["phaseId"])
+	})
+
+	// current 要放在上面，从而优先匹配
 
 	agentRouter.Verb("HEAD", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return internalAgent.HeadPhase(params["appId"], params["planId"], params["phaseId"])
@@ -61,6 +95,13 @@ func init() {
 	agentRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return internalAgent.GetTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
 	})
+
+	agentRouter.Verb("PUT", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.UpdateTask(params["appId"], params["planId"], params["phaseId"], params["taskId"], args["status"], args["context"])
+	})
+
+	agentCmd.Flags().StringVar(&agentUpdateFlags.status, "status", "", "Task status")
+	agentCmd.Flags().StringVar(&agentUpdateFlags.context, "context", "", "Task context")
 
 	rootCmd.AddCommand(agentCmd)
 }

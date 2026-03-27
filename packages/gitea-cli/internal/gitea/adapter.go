@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"code.gitea.io/sdk/gitea"
+	"com.lisitede.backstage.gitea/framework"
 )
 
 // Adapter Gitea API 适配器
@@ -74,15 +75,15 @@ func (a *Adapter) GetIssueOfRepo(owner, repoName, issueNo string) (*gitea.Issue,
 }
 
 // DeleteIssueOfRepo 删除仓库指定 Issue
-func (a *Adapter) DeleteIssueOfRepo(owner, repo, issueId string) (interface{}, error) {
-	var issueIdInt int64
-	fmt.Sscanf(issueId, "%d", &issueIdInt)
+func (a *Adapter) DeleteIssueOfRepo(owner, repo, issueNo string) (interface{}, error) {
+	var issueNoInt int64
+	fmt.Sscanf(issueNo, "%d", &issueNoInt)
 
-	_, err := a.client.DeleteIssue(owner, repo, issueIdInt)
+	_, err := a.client.DeleteIssue(owner, repo, issueNoInt)
 	if err != nil {
 		return nil, err
 	}
-	return map[string]interface{}{"code": 0, "message": "ok"}, nil
+	return framework.RestOK, nil
 }
 
 // ListCommentOfIssue 列出 Issue 的评论列表
@@ -95,6 +96,17 @@ func (a *Adapter) ListCommentOfIssue(owner, repo, issueNo string) ([]*gitea.Comm
 
 	comments, _, err := a.client.ListIssueComments(owner, repo, issueNoInt, gitea.ListIssueCommentOptions{})
 	return comments, err
+}
+
+// CreateComment 为 Issue 创建评论
+func (a *Adapter) CreateComment(owner, repo, issueNo, body string) (*gitea.Comment, error) {
+	var issueNoInt int64
+	fmt.Sscanf(issueNo, "%d", &issueNoInt)
+
+	comment, _, err := a.client.CreateIssueComment(owner, repo, issueNoInt, gitea.CreateIssueCommentOption{
+		Body: body,
+	})
+	return comment, err
 }
 
 // ListMilestoneOfRepo 列出仓库 Milestone 列表
@@ -194,6 +206,17 @@ func (a *Adapter) GetLabelByName(owner, repo, labelName string) (*gitea.Label, e
 	}
 
 	return nil, fmt.Errorf("label not found: %s", labelName)
+}
+
+// ReplaceIssueLabels 替换 Issue 的所有标签
+func (a *Adapter) ReplaceIssueLabels(owner, repo, issueNo string, labelIds []int64) ([]*gitea.Label, error) {
+	var issueNoInt int64
+	fmt.Sscanf(issueNo, "%d", &issueNoInt)
+
+	labels, _, err := a.client.ReplaceIssueLabels(owner, repo, issueNoInt, gitea.IssueLabelsOption{
+		Labels: labelIds,
+	})
+	return labels, err
 }
 
 // ListWikiOfRepo 列出仓库 Wiki 列表

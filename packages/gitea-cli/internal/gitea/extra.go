@@ -30,21 +30,36 @@ func (a *Adapter) CreateRepo(owner string, repoName string, description string) 
 	return a.TransferRepo("backstage", repoName, owner)
 }
 
-// ShowIssueOfRepoByPrefix 根据 Issue ID 前缀获取指定仓库的单个 Issue
-func (a *Adapter) ShowIssueOfRepoByPrefix(owner, repoName, issueTitlePrefix string) (*gitea.Issue, error) {
+// ShowIssueById 根据 Issue ID 前缀获取指定仓库的单个 Issue
+func (a *Adapter) ShowIssueById(owner, repoName, issueId string) (*gitea.Issue, error) {
+	issues, err := a.SearchIssueByPrefix(owner, repoName, issueId)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(issues) == 0 {
+		return nil, fmt.Errorf("issue not found: %s", issueId)
+	}
+
+	return issues[0], nil
+}
+
+// SearchIssueByPrefix 根据 Issue Title 前缀搜索指定仓库的所有 Issues
+func (a *Adapter) SearchIssueByPrefix(owner, repoName, prefix string) ([]*gitea.Issue, error) {
 	issues, err := a.SearchRepoIssues(owner, repoName, gitea.ListIssueOption{
-		KeyWord: issueTitlePrefix,
+		KeyWord: prefix,
 	})
 
 	if err != nil {
 		return nil, err
 	}
 
+	var matchedIssues []*gitea.Issue
 	for _, issue := range issues {
-		if strings.HasPrefix(issue.Title, issueTitlePrefix) {
-			return issue, nil
+		if strings.HasPrefix(issue.Title, prefix) {
+			matchedIssues = append(matchedIssues, issue)
 		}
 	}
 
-	return nil, fmt.Errorf("issue not found: %s", issueTitlePrefix)
+	return matchedIssues, nil
 }

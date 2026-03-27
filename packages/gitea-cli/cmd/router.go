@@ -45,6 +45,11 @@ func (r *Router) Verb(method, pattern string, callback Callback) {
 // pathname: 请求路径
 // args: 命令行传入的 flags 参数
 func (r *Router) Invoke(method, pathname string, args map[string]string) (interface{}, error) {
+	// fmt.Println("[DEBUG] registered routes:")
+	// for i, route := range r.routes {
+	// 	fmt.Printf("  [%d] %-6s %s\n", i, route.Method, route.Pattern)
+	// }
+
 	for _, route := range r.routes {
 		if route.Method != method {
 			continue
@@ -54,6 +59,8 @@ func (r *Router) Invoke(method, pathname string, args map[string]string) (interf
 		if !ok {
 			continue
 		}
+
+		// fmt.Printf("[DEBUG] matched route: %s %s\n", route.Method, route.Pattern)
 
 		params := m.Params
 		if params == nil {
