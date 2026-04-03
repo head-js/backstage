@@ -159,5 +159,6 @@ func init() {
 		return adapter.TransferRepo(params["owner"], params["repoName"], params["newOwner"])
 	})
 
+	apiCmd.Flags().SortFlags = false
 	rootCmd.AddCommand(apiCmd)
 }

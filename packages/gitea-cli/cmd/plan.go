@@ -115,17 +115,17 @@ func init() {
 		return markdownCurrentTask(params["appId"], params["planId"])
 	})
 
+	planCmd.Flags().SortFlags = false
+	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "when create / update, provide the name")
+	planCmd.Flags().StringVar(&planCreateFlags.title, "title", "", "when create / update, provide the title; i.e. title = id + name")
 	rootCmd.AddCommand(planCmd)
-
-	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "Name")
-	planCmd.Flags().StringVar(&planCreateFlags.title, "title", "", "Title")
 }
 
 // listPlanOfApp 获取指定应用名称下的所有 plan repos
 func listPlanOfApp(appId string) ([]plan.Plan, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 	repos, err := adapter.ListRepoOfOwner(appId)
 	if err != nil {
@@ -146,7 +146,7 @@ func listPlanOfApp(appId string) ([]plan.Plan, error) {
 func showPlan(appId, planId string) (interface{}, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 
 	repo, err := adapter.GetRepo(appId, planId)

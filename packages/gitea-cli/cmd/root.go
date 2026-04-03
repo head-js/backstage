@@ -11,10 +11,23 @@ import (
 var rootCmd = &cobra.Command{
 	Use:   "backstage-gitea",
 	Short: "A CLI tool to manage Plan / Phase / Task.",
-	Long:  "A CLI tool to manage Plan / Phase / Task. The backend uses Gitea Http API.",
+	Long:  `A CLI tool to manage Plan / Phase / Task. The backend uses Gitea Http API.
+The root command provides a brief healthcheck and has no real functions.`,
 	CompletionOptions: cobra.CompletionOptions{
 		DisableDefaultCmd: true,
 	},
+}
+
+func init() {
+	defaultHelp := rootCmd.HelpFunc()
+	rootCmd.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		if cmd.Parent() == nil {
+			fmt.Fprintf(cmd.OutOrStdout(), "%s\n\n", cmd.Long)
+			fmt.Fprintf(cmd.OutOrStdout(), "Flags:\n%s\n", cmd.LocalFlags().FlagUsages())
+		} else {
+			defaultHelp(cmd, args)
+		}
+	})
 }
 
 // Execute runs the root command

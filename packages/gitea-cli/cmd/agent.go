@@ -3,6 +3,7 @@ package cmd
 import (
 	"strings"
 
+	"com.lisitede.backstage.gitea/framework"
 	internalAgent "com.lisitede.backstage.gitea/internal/agent"
 	"github.com/spf13/cobra"
 )
@@ -25,11 +26,21 @@ Examples:
   # Get Plan
   backstage-gitea agent GET /cms-mgr/PLAN-102
 
+  # Get Current Phase
+  backstage-gitea agent HEAD /cms-mgr/PLAN-102/current-phase
+
+  # Get Current Task
+  backstage-gitea agent HEAD /cms-mgr/PLAN-102/PHASE-200/current-task
+
+  # Get Phase Metadata
+  backstage-gitea agent HEAD /cms-mgr/PLAN-102/PHASE-200
+
   # Get Phase
   backstage-gitea agent GET /cms-mgr/PLAN-102/PHASE-200
 
-	# Get Task Metadata
-	backstage-gitea agent HEAD /cms-mgr/PLAN-102/PHASE-200/TASK-101
+  # Get Task Metadata
+  backstage-gitea agent HEAD /cms-mgr/PLAN-102/PHASE-200/TASK-101
+
   # Get Task
   backstage-gitea agent GET /cms-mgr/PLAN-102/PHASE-200/TASK-101`,
 	Args: cobra.ExactArgs(2),
@@ -80,14 +91,7 @@ func init() {
 
 	// current 要放在上面，从而优先匹配
 
-	agentRouter.Verb("HEAD", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return internalAgent.HeadPhase(params["appId"], params["planId"], params["phaseId"])
-	})
-
-	agentRouter.Verb("GET", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return internalAgent.GetPhase(params["appId"], params["planId"], params["phaseId"])
-	})
-
+	// Task
 	agentRouter.Verb("HEAD", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return internalAgent.HeadTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
 	})
@@ -100,8 +104,35 @@ func init() {
 		return internalAgent.UpdateTask(params["appId"], params["planId"], params["phaseId"], params["taskId"], args["status"], args["context"])
 	})
 
-	agentCmd.Flags().StringVar(&agentUpdateFlags.status, "status", "", "Task status")
-	agentCmd.Flags().StringVar(&agentUpdateFlags.context, "context", "", "Task context")
+	// Phase
+	agentRouter.Verb("HEAD", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.HeadPhase(params["appId"], params["planId"], params["phaseId"])
+	})
+
+	agentRouter.Verb("GET", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.GetPhase(params["appId"], params["planId"], params["phaseId"])
+	})
+
+	agentRouter.Verb("PUT", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.UpdatePhase(params["appId"], params["planId"], params["phaseId"], args["status"], args["context"])
+	})
+
+	// Plan
+	agentRouter.Verb("HEAD", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return nil, framework.NotImplementedException("")
+	})
+
+	agentRouter.Verb("GET", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return nil, framework.NotImplementedException("")
+	})
+
+	agentRouter.Verb("PUT", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return internalAgent.UpdatePlan(params["appId"], params["planId"], args["status"], args["context"])
+	})
+
+	agentCmd.Flags().SortFlags = false
+	agentCmd.Flags().StringVar(&agentUpdateFlags.context, "context", "", "when create / update, provide the context or path to context markdown file")
+	agentCmd.Flags().StringVar(&agentUpdateFlags.status, "status", "", "when create / update, provide the status")
 
 	rootCmd.AddCommand(agentCmd)
 }

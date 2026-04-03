@@ -25,7 +25,7 @@ func NewAdapter() (*Adapter, error) {
 
 	client, err := gitea.NewClient(url, gitea.SetToken(token))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("Gitea.NewClient failed: %w", err)
 	}
 
 	return &Adapter{client: client}, nil
@@ -140,8 +140,9 @@ func (a *Adapter) ListLabelOfRepo(owner, repo string) ([]*gitea.Label, error) {
 // CreateLabel 创建 Label (POST /repos/:owner/:repoName/labels)
 func (a *Adapter) CreateLabel(owner, repo, name, color string) (*gitea.Label, error) {
 	label, _, err := a.client.CreateLabel(owner, repo, gitea.CreateLabelOption{
-		Name:  name,
-		Color: color,
+		Name:      name,
+		Color:     color,
+		Exclusive: true,
 	})
 	return label, err
 }
@@ -205,7 +206,7 @@ func (a *Adapter) GetLabelByName(owner, repo, labelName string) (*gitea.Label, e
 		}
 	}
 
-	return nil, fmt.Errorf("label not found: %s", labelName)
+	return nil, framework.NotFoundException("label not found: " + labelName)
 }
 
 // ReplaceIssueLabels 替换 Issue 的所有标签

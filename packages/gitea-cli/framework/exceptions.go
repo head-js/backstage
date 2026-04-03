@@ -2,17 +2,29 @@ package framework
 
 import "fmt"
 
-// invalidFormatException represents an error for invalid format
-type invalidFormatException struct {
-	Message string
+type exception struct {
+	name    string
+	message string
 }
 
-// Error implements the error interface
-func (e *invalidFormatException) Error() string {
-	return fmt.Sprintf("InvalidFormatException: %s", e.Message)
+func (e *exception) Error() string {
+	return fmt.Sprintf("%s: %s", e.name, e.message)
 }
 
 // InvalidFormatException creates a new InvalidFormatException
 func InvalidFormatException(message string) error {
-	return &invalidFormatException{Message: message}
+	return &exception{name: "InvalidFormatException", message: message}
+}
+
+// NotFoundException creates a new NotFoundException
+func NotFoundException(message string) error {
+	return &exception{name: "NotFoundException", message: message}
+}
+
+// NotImplementedException creates a new NotImplementedException
+func NotImplementedException(message string) error {
+	if message == "" {
+		message = "This feature is not yet implemented"
+	}
+	return &exception{name: "NotImplementedException", message: message}
 }

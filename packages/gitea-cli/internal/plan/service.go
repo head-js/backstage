@@ -37,7 +37,7 @@ func TranslatePhaseId2MilestoneId(appName, planName, phaseId string) (string, er
 func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 
 	repo, err := adapter.GetRepo(appId, planId)
@@ -66,18 +66,22 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 		phases = append(phases, *phase)
 	}
 
+	slices.SortFunc(phases, func(a, b Phase) int {
+		return cmp.Compare(a.Id, b.Id)
+	})
+
 	// 获取每个 Phase 的所有 Task
 	for i := range phases {
 		tasks, err := ListTaskOfPhase(appId, planId, phases[i].Id)
 		if err != nil {
-			return nil, fmt.Errorf("failed to list tasks for phase %s: %w", phases[i].Id, err)
+			return nil, err
 		}
 		phases[i].Tasks = tasks
 	}
 
 	var phasesMarkdown strings.Builder
 	for _, p := range phases {
-		phasesMarkdown.WriteString(fmt.Sprintf("### %s\n\n", p.Name))
+		phasesMarkdown.WriteString(fmt.Sprintf("### %s: %s\n\n", p.Id, p.Name))
 		// 输出该 Phase 下的所有 Tasks
 		for _, t := range p.Tasks {
 			checkbox := "[ ]"
@@ -111,12 +115,12 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 func CreatePlan(appId, planTitle string) (*Plan, error) {
 	planId, _, err := ExtractPlanId(planTitle)
 	if err != nil {
-		return nil, fmt.Errorf("invalid plan name: %w", err)
+		return nil, err
 	}
 
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 
 	// 初始化 Repo
@@ -127,7 +131,7 @@ func CreatePlan(appId, planTitle string) (*Plan, error) {
 
 	// 初始化 Phase Labels
 	for _, status := range []Status{StatusPass, StatusFail, StatusTodo, StatusHold} {
-		labelName := fmt.Sprintf("PHASE-%s", status)
+		labelName := status.Translate2Label("PHASE")
 		color := StatusColor[status]
 		if _, err := adapter.CreateLabel(appId, planId, labelName, color); err != nil {
 			return nil, fmt.Errorf("failed to create label %s: %w", labelName, err)
@@ -136,7 +140,7 @@ func CreatePlan(appId, planTitle string) (*Plan, error) {
 
 	// 初始化 Task Labels
 	for _, status := range []Status{StatusPass, StatusFail, StatusTodo, StatusHold} {
-		labelName := fmt.Sprintf("TASK-%s", status)
+		labelName := status.Translate2Label("TASK")
 		color := StatusColor[status]
 		if _, err := adapter.CreateLabel(appId, planId, labelName, color); err != nil {
 			return nil, fmt.Errorf("failed to create label %s: %w", labelName, err)
@@ -179,7 +183,7 @@ func CreatePhase(appId, planId, phaseName string) (*Phase, error) {
 
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 
 	_, err = adapter.CreateMilestone(appId, planId, title)
@@ -193,7 +197,7 @@ func CreatePhase(appId, planId, phaseName string) (*Phase, error) {
 	}
 
 	// 获取 Label 并添加到 Issue
-	label, err := adapter.GetLabelByName(appId, planId, "PHASE-TODO")
+	label, err := adapter.GetLabelByName(appId, planId, StatusTodo.Translate2Label("PHASE"))
 	if err != nil {
 		return nil, err
 	}
@@ -204,9 +208,11 @@ func CreatePhase(appId, planId, phaseName string) (*Phase, error) {
 		return nil, err
 	}
 
-	// 使用 translator 创建 Phase 对象
-	translator := NewPlanTranslator()
-	phase, _ := translator.TranslateIssue2Phase(issue)
+	// 使用 ShowPhase 统一处理
+	phase, err := ShowPhase(appId, planId, nextPhaseId)
+	if err != nil {
+		return nil, err
+	}
 
 	return phase, nil
 }
@@ -238,7 +244,7 @@ func CreateTask(appId, planId, phaseId string, taskName string) (*Task, error) {
 		return nil, err
 	}
 
-	label, err := adapter.GetLabelByName(appId, planId, "TASK-TODO")
+	label, err := adapter.GetLabelByName(appId, planId, StatusTodo.Translate2Label("TASK"))
 	if err != nil {
 		return nil, err
 	}
@@ -325,7 +331,7 @@ func ShowTask(appId, planId, phaseId, taskId string) (*Task, error) {
 func ListPhaseOfPlan(appId, planId string) ([]Phase, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 
 	// 通过搜索 PHASE-* 前缀的 Issues 获取 Phases
@@ -335,13 +341,9 @@ func ListPhaseOfPlan(appId, planId string) ([]Phase, error) {
 	}
 
 	translator := NewPlanTranslator()
-	var phases []Phase
-	for _, issue := range issues {
-		phase, err := translator.TranslateIssue2Phase(issue)
-		if err != nil {
-			return nil, fmt.Errorf("failed to translate issue to phase: %w", err)
-		}
-		phases = append(phases, *phase)
+	phases, err := translator.TranslateIssueList2Phase(issues)
+	if err != nil {
+		return nil, err
 	}
 
 	// 按 Phase.Id 升序排序

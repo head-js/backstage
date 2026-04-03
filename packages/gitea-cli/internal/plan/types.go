@@ -1,6 +1,11 @@
 package plan
 
-import "fmt"
+import (
+	"fmt"
+	"slices"
+
+	"com.lisitede.backstage.gitea/framework"
+)
 
 // GiteaExtra Gitea 对象的附加信息（Repo / Milestone 通用）
 type GiteaExtra struct {
@@ -58,20 +63,19 @@ const (
 
 var allStatus = []Status{StatusPass, StatusFail, StatusTodo, StatusHold, StatusUnknown}
 
-// IsValid 检查状态是否合法
-func (s Status) IsValid() bool {
-	for _, v := range allStatus {
-		if s == v {
-			return true
-		}
+// ValidateStatus 校验状态字符串是否合法，合法则返回对应的 Status，否则返回错误
+func ValidateStatus(status string) (Status, error) {
+	s := Status(status)
+	if !slices.Contains(allStatus, s) {
+		return "", framework.InvalidFormatException("invalid status: " + status)
 	}
-	return false
+	return s, nil
 }
 
 // Translate2Label 将状态转换为 Label 名称
 // prefix: 前缀，如 "TASK"，返回 "TASK-PASS" / "TASK-FAIL" / "TASK-TODO" / "TASK-HOLD" / "TASK-UNKNOWN"
 func (s Status) Translate2Label(prefix string) string {
-	return fmt.Sprintf("%s-%s", prefix, s)
+	return fmt.Sprintf("%s/%s", prefix, s)
 }
 
 // StatusColor 状态与颜色映射

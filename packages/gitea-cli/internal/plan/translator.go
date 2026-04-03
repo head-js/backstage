@@ -9,6 +9,7 @@
 //	TranslateMilestoneList2PhaseList(milestones)     Milestone 列表 → Phase 列表
 //	TranslateMilestone2Phase(milestone)              单个 Milestone → Phase
 //	TranslateIssue2Phase(issue)                      单个 Issue → Phase
+//	TranslateIssueList2Phase(issues)                 Issue 列表 → Phase 列表
 //	TranslateIssueList2TaskList(issues)             Issue 列表 → Task 列表
 //	TranslateIssue2Task(issue)                       单个 Issue → Task
 package plan
@@ -16,7 +17,6 @@ package plan
 import (
 	"bytes"
 	"fmt"
-	"strings"
 	"text/template"
 	"time"
 
@@ -125,19 +125,20 @@ func (pt *PlanTranslator) TranslateIssue2Phase(issue *gitea.Issue) (*Phase, erro
 	var labelNames []string
 	status := "UNKNOWN"
 	for _, label := range issue.Labels {
-		if label != nil && strings.HasPrefix(label.Name, "PHASE-") {
-			labelNames = append(labelNames, label.Name)
-			// 根据 Label 设置 Status
-			switch label.Name {
-			case "PHASE-TODO":
-				status = "TODO"
-			case "PHASE-HOLD":
-				status = "HOLD"
-			case "PHASE-PASS":
-				status = "PASS"
-			case "PHASE-FAIL":
-				status = "FAIL"
-			}
+		if label == nil {
+			continue
+		}
+		labelNames = append(labelNames, label.Name)
+		// 根据 Label 设置 Status
+		switch label.Name {
+		case StatusTodo.Translate2Label("PHASE"):
+			status = "TODO"
+		case StatusHold.Translate2Label("PHASE"):
+			status = "HOLD"
+		case StatusPass.Translate2Label("PHASE"):
+			status = "PASS"
+		case StatusFail.Translate2Label("PHASE"):
+			status = "FAIL"
 		}
 	}
 
@@ -150,6 +151,7 @@ func (pt *PlanTranslator) TranslateIssue2Phase(issue *gitea.Issue) (*Phase, erro
 		Gitea: GiteaExtra{
 			Type:      "ISSUE",
 			Id:        issue.ID,
+			No:        issue.Index,
 			Title:     issue.Title,
 			State:     string(issue.State),
 			Labels:    labelNames,
@@ -157,6 +159,25 @@ func (pt *PlanTranslator) TranslateIssue2Phase(issue *gitea.Issue) (*Phase, erro
 			UpdatedAt: updatedAt,
 		},
 	}, nil
+}
+
+// TranslateIssueList2Phase 将 Gitea Issues 列表转换为 Phase 列表
+func (pt *PlanTranslator) TranslateIssueList2Phase(issues []*gitea.Issue) ([]Phase, error) {
+	var phases []Phase
+
+	for _, issue := range issues {
+		if issue == nil {
+			continue
+		}
+
+		phase, err := pt.TranslateIssue2Phase(issue)
+		if err != nil {
+			return nil, fmt.Errorf("failed to translate issue to phase: %w", err)
+		}
+		phases = append(phases, *phase)
+	}
+
+	return phases, nil
 }
 
 // TranslateMilestone2Phase 将单个 Gitea Milestone 转换为 Phase（只含 id 和 name）
@@ -229,19 +250,20 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 	var labelNames []string
 	status := "UNKNOWN"
 	for _, label := range issue.Labels {
-		if label != nil && strings.HasPrefix(label.Name, "TASK-") {
-			labelNames = append(labelNames, label.Name)
-			// 根据 Label 设置 Status
-			switch label.Name {
-			case "TASK-TODO":
-				status = "TODO"
-			case "TASK-HALT":
-				status = "HALT"
-			case "TASK-PASS":
-				status = "PASS"
-			case "TASK-FAIL":
-				status = "FAIL"
-			}
+		if label == nil {
+			continue
+		}
+		labelNames = append(labelNames, label.Name)
+		// 根据 Label 设置 Status
+		switch label.Name {
+		case StatusTodo.Translate2Label("TASK"):
+			status = "TODO"
+		case StatusHold.Translate2Label("TASK"):
+			status = "HOLD"
+		case StatusPass.Translate2Label("TASK"):
+			status = "PASS"
+		case StatusFail.Translate2Label("TASK"):
+			status = "FAIL"
 		}
 	}
 

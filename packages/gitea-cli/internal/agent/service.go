@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"cmp"
 	"slices"
@@ -18,7 +19,7 @@ import (
 func GetPlan(appId string, planId string) (string, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return "", fmt.Errorf("failed to create adapter: %w", err)
+		return "", err
 	}
 
 	// Plan 创建时 Issue title 以 planId 开头，如 "PLAN-102: xxx"
@@ -116,7 +117,7 @@ func GetCurrentPhase(appId, planId string) (string, error) {
 func GetPhase(appId, planId, phaseId string) (string, error) {
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return "", fmt.Errorf("failed to create adapter: %w", err)
+		return "", err
 	}
 
 	// Phase 创建时 Issue title 以 phaseId 开头，如 "PHASE-001: xxx"
@@ -150,6 +151,62 @@ func GetPhase(appId, planId, phaseId string) (string, error) {
 	}
 
 	return "## " + phase.Title, nil
+}
+
+// UpdatePhase 更新任务状态
+// appId: 应用 ID，如 "cms-mgr"
+// planId: 计划 ID，如 "PLAN-102"
+// phaseId: 阶段 ID，如 "PHASE-200"
+// status: 任务状态，如 "PASS" | "FAIL" | "TODO" | "HOLD"
+// context: context 文件路径（参数是文件位置，需要读取文件内容）
+func UpdatePhase(appId, planId, phaseId, status, context string) (map[string]interface{}, error) {
+	// 校验状态是否合法
+	phaseStatus, err := plan.ValidateStatus(status)
+	if err != nil {
+		return nil, err
+	}
+
+	// 获取阶段详情
+	phase, err := plan.ShowPhase(appId, planId, phaseId)
+	if err != nil {
+		return nil, err
+	}
+
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	issueNo := fmt.Sprintf("%d", phase.Gitea.No)
+
+	// 状态转换为 Label 名称
+	labelName := phaseStatus.Translate2Label("PHASE")
+
+	// 获取目标 Label
+	label, err := adapter.GetLabelByName(appId, planId, labelName)
+	if err != nil {
+		return nil, err
+	}
+
+	// 替换 Issue 的标签为新状态标签（使用 Labels 标识状态，不修改 Issue state）
+	_, err = adapter.ReplaceIssueLabels(appId, planId, issueNo, []int64{label.ID})
+	if err != nil {
+		return nil, fmt.Errorf("failed to replace labels: %w", err)
+	}
+
+	// 如果提供了 context，加载内容并作为评论添加
+	if context != "" {
+		content, err := loadContext(context)
+		if err != nil {
+			return nil, err
+		}
+		_, err = adapter.CreateComment(appId, planId, issueNo, content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add comment: %w", err)
+		}
+	}
+
+	return framework.RestOK, nil
 }
 
 // getCurrentTaskId 获取当前 Task
@@ -226,7 +283,7 @@ func GetTask(appId, planId, phaseId, taskId string) (string, error) {
 
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return "", fmt.Errorf("failed to create adapter: %w", err)
+		return "", err
 	}
 
 	// 获取评论
@@ -258,9 +315,9 @@ func GetTask(appId, planId, phaseId, taskId string) (string, error) {
 // context: context 文件路径（参数是文件位置，需要读取文件内容）
 func UpdateTask(appId, planId, phaseId, taskId, status, context string) (map[string]interface{}, error) {
 	// 校验状态是否合法
-	taskStatus := plan.Status(status)
-	if !taskStatus.IsValid() {
-		return nil, fmt.Errorf("invalid status: %s", status)
+	taskStatus, err := plan.ValidateStatus(status)
+	if err != nil {
+		return nil, err
 	}
 
 	// 获取任务详情
@@ -271,7 +328,7 @@ func UpdateTask(appId, planId, phaseId, taskId, status, context string) (map[str
 
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create adapter: %w", err)
+		return nil, err
 	}
 
 	issueNo := fmt.Sprintf("%d", task.Gitea.No)
@@ -282,7 +339,7 @@ func UpdateTask(appId, planId, phaseId, taskId, status, context string) (map[str
 	// 获取目标 Label
 	label, err := adapter.GetLabelByName(appId, planId, labelName)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get label %s: %w", labelName, err)
+		return nil, err
 	}
 
 	// 替换 Issue 的标签为新状态标签（使用 Labels 标识状态，不修改 Issue state）
@@ -291,27 +348,67 @@ func UpdateTask(appId, planId, phaseId, taskId, status, context string) (map[str
 		return nil, fmt.Errorf("failed to replace labels: %w", err)
 	}
 
-	// 如果提供了 context 文件，读取并作为评论添加
+	// 如果提供了 context，加载内容并作为评论添加
 	if context != "" {
-		// 获取当前工作目录并拼接相对路径
-		pwd, err := os.Getwd()
+		content, err := loadContext(context)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get working directory: %w", err)
+			return nil, err
 		}
-		contextPath := filepath.Join(pwd, context)
-		// fmt.Printf("[DEBUG] context file path: %s\n", contextPath)
-
-		content, err := os.ReadFile(contextPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to read context file: %w", err)
-		}
-
-		// 添加评论
-		_, err = adapter.CreateComment(appId, planId, issueNo, string(content))
+		_, err = adapter.CreateComment(appId, planId, issueNo, content)
 		if err != nil {
 			return nil, fmt.Errorf("failed to add comment: %w", err)
 		}
 	}
 
 	return framework.RestOK, nil
+}
+
+// UpdatePlan
+func UpdatePlan(appId, planId, status, context string) (map[string]interface{}, error) {
+	// TODO: Plan 目前没有 Status 的概念
+
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	// Plan 创建时 Issue title 以 planId 开头
+	issue, err := adapter.ShowIssueById(appId, planId, planId)
+	if err != nil {
+		return nil, err
+	}
+
+	issueNo := fmt.Sprintf("%d", issue.Index)
+
+	// 如果提供了 context，加载内容并作为评论添加
+	if context != "" {
+		content, err := loadContext(context)
+		if err != nil {
+			return nil, err
+		}
+		_, err = adapter.CreateComment(appId, planId, issueNo, content)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add comment: %w", err)
+		}
+	}
+
+	return framework.RestOK, nil
+}
+
+func loadContext(context string) (string, error) {
+	if len(context) < 64 && strings.HasSuffix(context, ".md") {
+		pwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("failed to get working directory: %w", err)
+		}
+		path := filepath.Join(pwd, context)
+		if _, err := os.Stat(path); err == nil {
+			content, err := os.ReadFile(path)
+			if err != nil {
+				return "", fmt.Errorf("failed to read context file: %w", err)
+			}
+			return string(content), nil
+		}
+	}
+	return context, nil
 }
