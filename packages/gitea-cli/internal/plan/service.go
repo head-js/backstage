@@ -298,7 +298,7 @@ func ShowPhase(appId, planId, phaseId string) (*Phase, error) {
 		return nil, err
 	}
 
-	issue, err := adapter.ShowIssueById(appId, planId, phaseId)
+	issue, err := adapter.ShowIssueByPrefixId(appId, planId, phaseId)
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +324,7 @@ func ShowTask(appId, planId, phaseId, taskId string) (*Task, error) {
 			return &task, nil
 		}
 	}
-	return nil, fmt.Errorf("task not found")
+	return nil, framework.NotFoundException("task not found: " + taskId)
 }
 
 // ListPhaseOfPlan 获取指定 Plan 下的所有 Phases

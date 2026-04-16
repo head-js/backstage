@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"code.gitea.io/sdk/gitea"
+	"com.lisitede.backstage.gitea/framework"
 )
 
 // extra.go 提供 Gitea SDK 的功能扩展
@@ -44,11 +45,22 @@ func (a *Adapter) ShowIssueById(owner, repoName, issueId string) (*gitea.Issue, 
 	return issues[0], nil
 }
 
+func (a *Adapter) ShowIssueByPrefixId(owner, repoName, prefixId string) (*gitea.Issue, error) {
+	issues, err := a.SearchIssueByPrefix(owner, repoName, prefixId+":")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(issues) != 1 {
+		return nil, framework.NotFoundException("issue not found: " + prefixId)
+	}
+
+	return issues[0], nil
+}
+
 // SearchIssueByPrefix 根据 Issue Title 前缀搜索指定仓库的所有 Issues
 func (a *Adapter) SearchIssueByPrefix(owner, repoName, prefix string) ([]*gitea.Issue, error) {
-	issues, err := a.SearchRepoIssues(owner, repoName, gitea.ListIssueOption{
-		KeyWord: prefix,
-	})
+	issues, err := a.ListIssueOfRepo(owner, repoName)
 
 	if err != nil {
 		return nil, err

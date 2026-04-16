@@ -69,6 +69,7 @@ func init() {
 		return listPlanOfApp(params["appId"])
 	})
 
+	// TODO: 移动到 agent 命令
 	planRouter.Verb("POST", "/:appId/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		if args["title"] == "" {
 			return nil, fmt.Errorf("POST /:appId/plans requires --title flag")
@@ -93,7 +94,19 @@ func init() {
 		if args["name"] == "" {
 			return nil, fmt.Errorf("POST /:appId/:planId/phases requires --name flag")
 		}
-		return plan.CreatePhase(params["appId"], params["planId"], args["name"])
+
+		phase, err := plan.CreatePhase(params["appId"], params["planId"], args["name"])
+		if err != nil {
+			return nil, err
+		}
+
+		// Omit Gitea 字段，使用临时 map 返回
+		return map[string]interface{}{
+			"id":     phase.Id,
+			"name":   phase.Name,
+			"title":  phase.Title,
+			"status": phase.Status,
+		}, nil
 	})
 
 	planRouter.Verb("LIST", "/:appId/:planId/:phase/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -104,7 +117,19 @@ func init() {
 		if args["name"] == "" {
 			return nil, fmt.Errorf("POST /:appId/:planId/:phase/tasks requires --name flag")
 		}
-		return plan.CreateTask(params["appId"], params["planId"], params["phase"], args["name"])
+
+		task, err := plan.CreateTask(params["appId"], params["planId"], params["phase"], args["name"])
+		if err != nil {
+			return nil, err
+		}
+
+		// Omit Gitea 字段，使用临时 map 返回
+		return map[string]interface{}{
+			"id":     task.Id,
+			"name":   task.Name,
+			"title":  task.Title,
+			"status": task.Status,
+		}, nil
 	})
 
 	planRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {

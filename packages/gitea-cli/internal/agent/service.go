@@ -396,6 +396,9 @@ func UpdatePlan(appId, planId, status, context string) (map[string]interface{}, 
 }
 
 func loadContext(context string) (string, error) {
+	if !strings.HasPrefix(context, ".") {
+		return "", framework.InvalidFormatException("context must be a relative path starting with '.'")
+	}
 	if len(context) < 64 && strings.HasSuffix(context, ".md") {
 		pwd, err := os.Getwd()
 		if err != nil {
