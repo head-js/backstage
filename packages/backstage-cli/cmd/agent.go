@@ -5,6 +5,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var (
+	logLevelDebug     bool
+	logLevelDangerous bool
+)
+
 var agentCmd = &cobra.Command{
 	Use:   "agent",
 	Short: "Report CLI invocation context for AI agents.",
@@ -30,16 +35,26 @@ Examples:
   backstage agent hasshin`,
 	Args: cobra.NoArgs,
 	RunE: func(cmd *cobra.Command, args []string) error {
-		shell, err := internalAgent.Hasshin()
-		if err != nil {
-			return outputError(err)
+		var logLevel string
+		if logLevelDebug {
+			logLevel = "DEBUG"
+		} else if logLevelDangerous {
+			logLevel = "DANGEROUS"
+		} else {
+			logLevel = "INFO"
 		}
-		printResult(shell)
+		internalAgent.Hasshin(logLevel)
 		return nil
 	},
 }
 
 func init() {
+	hasshinCmd.Flags().BoolVar(&logLevelDebug, "debug", false, "enable debug output")
+	hasshinCmd.Flags().BoolVar(&logLevelDangerous, "dangerous", false, "enable dangerous operations")
+	hasshinCmd.Flags().MarkHidden("debug")
+	hasshinCmd.Flags().MarkHidden("dangerous")
+	hasshinCmd.MarkFlagsMutuallyExclusive("debug", "dangerous")
+
 	agentCmd.AddCommand(hasshinCmd)
 	rootCmd.AddCommand(agentCmd)
 }
