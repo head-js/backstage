@@ -26,9 +26,17 @@ func queryChainLayerOS(pid int) (ChainBlock, error) {
 		ppid = -1
 	}
 
-	name, err := p.Name()
-	if err != nil {
-		name = ""
+	// Exe() 走 QueryFullProcessImageNameW，返回完整绝对路径（含空格，不截断），
+	// 等价于 darwin 上 KERN_PROCARGS2 的 exec_path 语义。
+	// 权限受限（System / csrss.exe 等受保护进程）时会失败，此时回退到 Name()
+	// （仅 basename），供下游启发式使用。
+	name, err := p.Exe()
+	if err != nil || name == "" {
+		if n, e := p.Name(); e == nil {
+			name = n
+		} else {
+			name = ""
+		}
 	}
 
 	cmdline, err := p.Cmdline()

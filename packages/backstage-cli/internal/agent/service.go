@@ -5,8 +5,6 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
-	"path/filepath"
-	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -34,8 +32,7 @@ import (
 //
 // stdio 信号不再作为独立块，改由特征指纹 FP-01 承载（见 .context/current-task.md 第八节）。
 func Hasshin(logLevel LogLevel) {
-	fmt.Fprintln(os.Stdout, "[HASSHIN]")
-	_ = dumpRuntimeBlock(logLevel)
+	rt := dumpRuntimeBlock(logLevel)
 	_ = dumpProcessBlock(logLevel)
 	chainBlock := dumpChainBlock(logLevel)
 	_ = dumpEnvBlock(logLevel)
@@ -43,58 +40,8 @@ func Hasshin(logLevel LogLevel) {
 	// ========== Final ==========
 	// fmt.Fprintln(os.Stderr, "[HASSHIN] ---- Final ----")
 
-	var normalized []string
-	seen := make(map[string]bool)
-
-	for _, layer := range chainBlock.Layers {
-		evalPath := parseExePath(layer.Command)
-		if evalPath == "" {
-			continue
-		}
-		if !seen[evalPath] {
-			seen[evalPath] = true
-			normalized = append(normalized, evalPath)
-		}
-	}
-
-	for _, p := range normalized {
-		fmt.Fprintln(os.Stderr, p)
-	}
-}
-
-// parseExePath 从 Command 字符串中提取第一个可执行路径并标准化。
-// 处理带引号的路径，解析符号链接、.. 和 .。
-func parseExePath(cmd string) string {
-	cmd = strings.TrimSpace(cmd)
-	if cmd == "" {
-		return ""
-	}
-
-	var exePath string
-	if cmd[0] == '"' {
-		if end := strings.Index(cmd[1:], "\""); end >= 0 {
-			exePath = cmd[1 : end+1]
-		}
-	} else {
-		if idx := strings.Index(cmd, " "); idx >= 0 {
-			exePath = cmd[:idx]
-		} else {
-			exePath = cmd
-		}
-	}
-	if exePath == "" {
-		return ""
-	}
-
-	absPath, err := filepath.Abs(exePath)
-	if err != nil {
-		absPath = exePath
-	}
-	evalPath, err := filepath.EvalSymlinks(absPath)
-	if err != nil {
-		evalPath = absPath
-	}
-	return filepath.Clean(evalPath)
+	chain := normalizeChainExe(chainBlock.Layers)
+	fmt.Fprint(os.Stderr, renderHasshinPrompt(rt, chain))
 }
 
 // dumpRuntimeBlock 采集并输出 runtime 块（宿主环境快照）：os / arch /
@@ -127,38 +74,6 @@ func dumpRuntimeBlock(logLevel LogLevel) RuntimeBlock {
 	}
 
 	return b
-}
-
-func printBlockByReflect(block interface{}, logLevel LogLevel, blockName string) {
-	fmt.Fprintf(os.Stderr, "---- %s ----\n", blockName)
-
-	v := reflect.ValueOf(block)
-	t := v.Type()
-
-	for i := 0; i < t.NumField(); i++ {
-		field := t.Field(i)
-		tag := field.Tag.Get("loglevel")
-
-		fieldLevel := parseLogLevel(tag)
-		if logLevel >= fieldLevel {
-			fieldName := field.Name
-			fieldValue := v.Field(i).Interface()
-			fmt.Fprintf(os.Stderr, "  %s: %v\n", fieldName, fieldValue)
-		}
-	}
-}
-
-func parseLogLevel(s string) LogLevel {
-	switch s {
-	case "info":
-		return LogLevelInfo
-	case "debug":
-		return LogLevelDebug
-	case "dangerous":
-		return LogLevelDangerous
-	default:
-		return LogLevelInfo
-	}
 }
 
 // collectDarwinRuntime 填充 RuntimeBlock 的 mac 侧字段，通过 sw_vers / uname /
