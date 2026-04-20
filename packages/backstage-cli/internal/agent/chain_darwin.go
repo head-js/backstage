@@ -9,18 +9,18 @@ import (
 	"strings"
 )
 
-func queryChainLayerOS(pid int) (ChainLayer, error) {
+func queryChainLayerOS(pid int) (ChainBlock, error) {
 	out, err := exec.Command("ps",
 		"-o", "pid=,ppid=,pgid=,sess=,uid=,tty=,user=,lstart=,comm=,command=",
 		"-p", strconv.Itoa(pid)).CombinedOutput()
 	if err != nil {
-		return ChainLayer{
+		return ChainBlock{
 			PID: pid, PPID: -1, PGID: -1, SID: -1, UID: -1,
 			RawPsLine: fmt.Sprintf("<ps err: %v; output=%q>", err, strings.TrimSpace(string(out))),
 		}, err
 	}
 	raw := strings.TrimRight(string(out), "\r\n")
-	layer := ChainLayer{
+	layer := ChainBlock{
 		RawPsLine: raw,
 		PID:       pid,
 		PPID:      -1,
