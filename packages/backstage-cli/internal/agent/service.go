@@ -14,10 +14,9 @@ import (
 
 // Hasshin 采集调用方的运行环境特征（Phase 1 信号探索版）。
 //
-// **平台范围**：Phase 1 聚焦 macOS；Windows 代码路径已预留（保证编译
-// 通过）但运行时 chain 块退化为 stub（ps 没有 Windows 实现）、
-// runtime 块的 macOS-专属字段留零值、process 块的 uid/euid 由 Go
-// stdlib 在 Windows 属性上自然返回 -1。Linux 不作为一等目标。
+// **平台范围**：Phase 1 聚焦 macOS + Windows；Windows chain 块通过 gopsutil
+// 实现完整；runtime 块的 macOS-专属字段留零值、process 块的 uid/euid 由 Go
+// stdlib 在 Windows 属性上自然返回 -1。Linux chain 返回 NotImplementedException。
 //
 // 探索期策略：stderr 按块输出多维观测信号，用于在多种调用环境下采样分析；
 // 不做分类，只做特征抽取（见 .context/current-task.md 决策 #7）。stdout
@@ -26,29 +25,35 @@ import (
 //
 // 信号分块（各块 schema 定义详见 internal/agent/types.go；当前
 // RuntimeBlock / ProcessBlock / ChainBlock / EnvBlock 已落地）：
-//   runtime  (宿主环境)
-//   process  (本进程)
-//   chain    (祖先链快照；语义停止条件终止，无硬层数上限)
-//   env      (按 family 分组 + uncategorized + raw 全量；TASK-103 旧 D/E 二分已合并)
+//
+//	runtime  (宿主环境)
+//	process  (本进程)
+//	chain    (祖先链快照；语义停止条件终止，无硬层数上限)
+//	env      (按 family 分组 + uncategorized + raw 全量；TASK-103 旧 D/E 二分已合并)
 //
 // stdio 信号不再作为独立块，改由特征指纹 FP-01 承载（见 .context/current-task.md 第八节）。
-func Hasshin() (string, error) {
-	dumpRuntimeBlock()
-	dumpProcessBlock()
-	parentComm := dumpChainBlock()
-	dumpEnvBlock()
+func Hasshin(logLevel string) {
+	fmt.Fprintln(os.Stderr, "[HASSHIN]")
+	_ = dumpRuntimeBlock()
+	_ = dumpProcessBlock()
+	chainBlock := dumpChainBlock()
+	_ = dumpEnvBlock()
 
 	// ========== Final: legacy whitelist match ==========
 	fmt.Fprintln(os.Stderr, "[hasshin] --- final ---")
+	var parentComm string
+	if len(chainBlock.Layers) > 0 {
+		parentComm = chainBlock.Layers[0].Comm
+	}
 	name := filepath.Base(parentComm)
 	name = strings.TrimPrefix(name, "-")
 	fmt.Fprintf(os.Stderr, "  normalized parent comm: %q\n", name)
 
 	switch name {
 	case "bash", "zsh", "sh", "fish":
-		return name, nil
+		fmt.Fprintf(os.Stderr, "  result: %q\n", name)
 	default:
-		return "unknown", nil
+		fmt.Fprintf(os.Stderr, "  result: %q\n", "unknown")
 	}
 }
 
@@ -60,7 +65,7 @@ func Hasshin() (string, error) {
 // （见 collectDarwinRuntime）；linux / windows 的平台代码留待
 // TASK-105 或 Phase 2。在非 mac 平台上运行时，mac 侧专属字段保持
 // 零值 / 空串。
-func dumpRuntimeBlock() {
+func dumpRuntimeBlock() RuntimeBlock {
 	b := RuntimeBlock{
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,
@@ -79,12 +84,13 @@ func dumpRuntimeBlock() {
 		// case "windows": // TASK-105 / Phase 2
 	}
 
-	fmt.Fprintf(os.Stderr, "[HASSHIN] ---- Runtime ----\n")
+	fmt.Fprintf(os.Stderr, "---- Runtime ----\n")
 	fmt.Fprintf(os.Stderr, "  os=%q arch=%q hostname=%q\n", b.OS, b.Arch, b.Hostname)
 	fmt.Fprintf(os.Stderr, "  cpu_count=%d cpu_cores_physical=%d cpu_model=%q\n", b.CPUCount, b.CPUCoresPhysical, b.CPUModel)
 	fmt.Fprintf(os.Stderr, "  memory_bytes=%d\n", b.MemoryBytes)
 	fmt.Fprintf(os.Stderr, "  os_version=%q os_build=%q kernel_version=%q\n", b.OSVersion, b.OSBuild, b.KernelVersion)
 	fmt.Fprintf(os.Stderr, "  distro=%q session_type=%q virtualization=%q\n", b.Distro, b.SessionType, b.Virtualization)
+	return b
 }
 
 // collectDarwinRuntime 填充 RuntimeBlock 的 mac 侧字段，通过 sw_vers / uname /
@@ -137,7 +143,7 @@ func setExecInt64(dst *int64, name string, args ...string) {
 // 平台分派：当前仅填充跨平台 stdlib 能给出的字段；Unix-only 数值 ID
 // （pgid / sid / gid / egid）及 Windows 专属字段（SID / SessionID /
 // domain / integrity / elevated）留待 TASK-105 / Phase 2 填充。
-func dumpProcessBlock() {
+func dumpProcessBlock() ProcessBlock {
 	b := ProcessBlock{
 		PID:  os.Getpid(),
 		PPID: os.Getppid(),
@@ -155,10 +161,11 @@ func dumpProcessBlock() {
 	} else {
 		b.CWD = fmt.Sprintf("<err: %v>", err)
 	}
-	fmt.Fprintf(os.Stderr, "[HASSHIN] ---- Process ----\n")
+	fmt.Fprintf(os.Stderr, "---- Process ----\n")
 	fmt.Fprintf(os.Stderr, "  pid=%d ppid=%d uid=%d euid=%d username=%q\n", b.PID, b.PPID, b.UID, b.EUID, b.Username)
 	fmt.Fprintf(os.Stderr, "  cwd=%q\n", b.CWD)
 	fmt.Fprintf(os.Stderr, "  argv=%q\n", b.Argv)
+	return b
 }
 
 // maxChainDepth 是 chain 遍历的死循环保护上限，**不是业务约束**。
@@ -173,10 +180,14 @@ const maxChainDepth = 64
 // 二次判定 —— 那些逻辑归特征指纹章节处理（见 .context/current-task.md
 // 第八节）。
 //
+// 平台实现：通过 Go build constraints（//go:build 指令）按 OS 分离，
+// 见 chain_darwin.go / chain_windows.go / chain_other.go。
+// 编译时按目标平台自动选择对应文件，无需运行时 switch。
+//
 // 返回值 parentComm 是 layers[0].Comm（即 os.Getppid() 的 ps -o comm=
 // 原值，可能带 "-" 前缀），供 Hasshin final whitelist 段沿用老逻辑。
 // 链为空时返回 ""。
-func dumpChainBlock() (parentComm string) {
+func dumpChainBlock() ChainBlock {
 	b := ChainBlock{}
 	visited := make(map[int]bool)
 	cur := os.Getppid()
@@ -185,7 +196,7 @@ func dumpChainBlock() (parentComm string) {
 		if cur <= 1 {
 			if cur == 1 {
 				// 把 init/launchd 这一终止层也记进来（成功与否都记，不丢信息）
-				layer, _ := queryChainLayer(cur)
+				layer, _ := queryChainLayerOS(cur)
 				b.Layers = append(b.Layers, layer)
 				b.Termination = "init"
 			} else {
@@ -200,7 +211,7 @@ func dumpChainBlock() (parentComm string) {
 		}
 		visited[cur] = true
 
-		layer, err := queryChainLayer(cur)
+		layer, err := queryChainLayerOS(cur)
 		if err != nil {
 			// 失败层也记录进来：保留 pid + 错误详情，不丢信息
 			b.Layers = append(b.Layers, layer)
@@ -220,7 +231,7 @@ func dumpChainBlock() (parentComm string) {
 	}
 	b.Depth = len(b.Layers)
 
-	fmt.Fprintf(os.Stderr, "[HASSHIN] ---- Chain ----\n")
+	fmt.Fprintf(os.Stderr, "---- Chain ----\n")
 	fmt.Fprintf(os.Stderr, "  depth=%d termination=%q\n", b.Depth, b.Termination)
 	for i, l := range b.Layers {
 		fmt.Fprintf(os.Stderr, "  layer[%d] pid=%d ppid=%d pgid=%d sid=%d uid=%d username=%q\n",
@@ -229,122 +240,7 @@ func dumpChainBlock() (parentComm string) {
 		fmt.Fprintf(os.Stderr, "           command=%q\n", l.Command)
 		fmt.Fprintf(os.Stderr, "           raw_ps_line=%q\n", l.RawPsLine)
 	}
-
-	if len(b.Layers) > 0 {
-		parentComm = b.Layers[0].Comm
-	}
-	return parentComm
-}
-
-// queryChainLayer 查询 pid 的身份快照，按 GOOS 分派到具体实现。
-//
-// 返回 err != nil 表示查询失败，调用方应终止遍历；但返回的
-// ChainLayer 仍填有 PID + RawPsLine（后者含错误文本），不丢信息。
-//
-// 当前分派：
-//   - darwin：queryChainLayerDarwin（ps 拟现有实现）
-//   - 其他（windows / linux）：stub，返回明确 "not implemented" 错误
-func queryChainLayer(pid int) (ChainLayer, error) {
-	switch runtime.GOOS {
-	case "darwin":
-		return queryChainLayerDarwin(pid)
-	default:
-		msg := fmt.Sprintf("chain query not implemented on %s yet", runtime.GOOS)
-		return ChainLayer{
-			PID: pid, PPID: -1, PGID: -1, SID: -1, UID: -1,
-			RawPsLine: "<" + msg + ">",
-		}, fmt.Errorf("%s", msg)
-	}
-}
-
-// queryChainLayerDarwin 调一次 ps 查询 pid 的身份快照（macOS）。
-//
-// 解析失败（fields 不足）时返回填了 RawPsLine 的 layer，结构化
-// 字段留哨位 -1；err=nil 表示 "ps 调用成功、只是解析不齐"，
-// 调用方可继续遍历（虽然 PPID 为 -1 会导致 cur <= 1 分支）。
-//
-// ps 列布局：pid / ppid / pgid / sess / uid / tty / user /
-// lstart(5 tokens) / comm / command(剩余)。最小字段数 = 13。
-//
-// command 字段从 raw 里按 token 偏移手动切出，保留原始多空格
-// （strings.Fields+Join 会把多空格规整成单空格，丢失原文）。
-func queryChainLayerDarwin(pid int) (ChainLayer, error) {
-	// CombinedOutput 合并 stderr，失败时 ps 的错误输出（如
-	// "ps: no such process"）也能被 RawPsLine 捕捉到。
-	out, err := exec.Command("ps",
-		"-o", "pid=,ppid=,pgid=,sess=,uid=,tty=,user=,lstart=,comm=,command=",
-		"-p", strconv.Itoa(pid)).CombinedOutput()
-	if err != nil {
-		return ChainLayer{
-			PID: pid, PPID: -1, PGID: -1, SID: -1, UID: -1,
-			RawPsLine: fmt.Sprintf("<ps err: %v; output=%q>", err, strings.TrimSpace(string(out))),
-		}, err
-	}
-	raw := strings.TrimRight(string(out), "\r\n")
-	layer := ChainLayer{
-		RawPsLine: raw,
-		PID:       pid, // 兜底；解析成功会覆盖
-		PPID:      -1,
-		PGID:      -1,
-		SID:       -1,
-		UID:       -1,
-	}
-	fields := strings.Fields(raw)
-	if len(fields) < 13 {
-		return layer, nil
-	}
-	if n, e := strconv.Atoi(fields[0]); e == nil {
-		layer.PID = n
-	}
-	if n, e := strconv.Atoi(fields[1]); e == nil {
-		layer.PPID = n
-	}
-	if n, e := strconv.Atoi(fields[2]); e == nil {
-		layer.PGID = n
-	}
-	if n, e := strconv.Atoi(fields[3]); e == nil {
-		layer.SID = n
-	}
-	if n, e := strconv.Atoi(fields[4]); e == nil {
-		layer.UID = n
-	}
-	layer.TTY = fields[5]
-	layer.Username = fields[6]
-	layer.Lstart = strings.Join(fields[7:12], " ")
-	layer.Comm = fields[12]
-	// command 保留原始空白：跳过前 13 个 token 后取原文尾部
-	layer.Command = rawAfterNTokens(raw, 13)
-	return layer, nil
-}
-
-// rawAfterNTokens 跳过 raw 开头的 n 个空白分隔 token 后，返回剩余原文
-// （不含引导空白）。与 strings.Fields+Join 的区别：token 内部的多
-// 空格不会被规整成单空格。用于保留 command 字段的原始形态。
-func rawAfterNTokens(raw string, n int) string {
-	s := raw
-	for i := 0; i < n; i++ {
-		// skip leading whitespace
-		j := 0
-		for j < len(s) && (s[j] == ' ' || s[j] == '\t') {
-			j++
-		}
-		s = s[j:]
-		if s == "" {
-			return ""
-		}
-		// find end of token
-		j = 0
-		for j < len(s) && s[j] != ' ' && s[j] != '\t' {
-			j++
-		}
-		s = s[j:]
-	}
-	// trim one leading whitespace run before command’s original content
-	j := 0
-	for j < len(s) && (s[j] == ' ' || s[j] == '\t') {
-		j++
-	}
-	return s[j:]
+	return b
 }
 
 // envExactMap 固定键 → family 名的精确匹配表。优先级高于 envPrefixRules。
@@ -453,6 +349,7 @@ var envPrefixRules = []struct {
 // 但 os.Environ() 返回原始大小写。策略：
 //  1. 先按原始 key 试匹配（mac 行为此步即终结，与此前完全一致）
 //  2. Windows 下再按 UPPER(key) 再试一次（捕捉 Path / Home 等 native 形式）
+//
 // mac 不执行第 2 步，原有行为严格不变。
 func classifyEnvKey(key string) string {
 	// Step 1: 先按原始 key 匹配（mac / Windows 同走此分支）
@@ -524,7 +421,7 @@ func (b *EnvBlock) mapForFamily(family string) *map[string]string {
 //   - 每个 env 走 classifyEnvKey 单归属到 family，归不到进 Uncategorized
 //   - stderr 按 family 顺序打（空 family 跳过 header），uncategorized 之后
 //     打全量 key 清单（按字母排序），便于扫视和跨样本 diff
-func dumpEnvBlock() {
+func dumpEnvBlock() EnvBlock {
 	b := EnvBlock{
 		Raw: os.Environ(), // 全量原样
 	}
@@ -550,7 +447,7 @@ func dumpEnvBlock() {
 	}
 
 	// stderr 输出（按 family 顺序；空 family 跳过 header）
-	fmt.Fprintf(os.Stderr, "[HASSHIN] ---- Env ----\n")
+	fmt.Fprintf(os.Stderr, "---- Env ----\n")
 	printEnvFamily("extension_host", b.ExtensionHost)
 	printEnvFamily("ide", b.IDE)
 	printEnvFamily("session", b.Session)
@@ -570,6 +467,7 @@ func dumpEnvBlock() {
 	sort.Strings(sortedKeys)
 	fmt.Fprintf(os.Stderr, "  all_keys (N=%d, sorted):\n    %s\n",
 		len(sortedKeys), strings.Join(sortedKeys, " "))
+	return b
 }
 
 // printEnvFamily 打一个 family 块到 stderr；空 map 跳过不打 header。
@@ -585,7 +483,6 @@ func printEnvFamily(label string, m map[string]string) {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		fmt.Fprintf(os.Stderr, "    %s=%q\n", k, m[k])
+		fmt.Fprintf(os.Stderr, "    %s\n", k)
 	}
 }
-
