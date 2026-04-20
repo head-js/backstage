@@ -2,6 +2,14 @@ package agent
 
 import "time"
 
+type LogLevel int
+
+const (
+	LogLevelInfo LogLevel = iota
+	LogLevelDebug
+	LogLevelDangerous
+)
+
 // RuntimeBlock 是 Schema v1 中 runtime 分组的 Go 映射：
 // 描述本 CLI 被执行时的宿主机器 / OS 上下文快照。
 //
@@ -18,31 +26,31 @@ import "time"
 // 若未来需要会走独立 block 承载。
 type RuntimeBlock struct {
 	// Platform identity. (both)
-	OS   string // runtime.GOOS：如 "darwin" / "windows" / "linux"
-	Arch string // runtime.GOARCH：如 "arm64" / "amd64"
+	OS   string `loglevel:"debug"` // runtime.GOOS：如 "darwin" / "windows" / "linux"
+	Arch string `loglevel:"debug"` // runtime.GOARCH：如 "arm64" / "amd64"
 
 	// Machine identity. (both)
-	Hostname string // os.Hostname()
+	Hostname string `loglevel:"dangerous"` // os.Hostname()
 
 	// CPU. (both)
-	CPUCount         int    // runtime.NumCPU()：进程可用的 logical CPU 数
-	CPUCoresPhysical int    // 物理核心数；mac: sysctl hw.physicalcpu
-	CPUModel         string // 型号字串；mac: sysctl machdep.cpu.brand_string
+	CPUCount         int    `loglevel:"dangerous"` // runtime.NumCPU()：进程可用的 logical CPU 数
+	CPUCoresPhysical int    `loglevel:"dangerous"` // 物理核心数；mac: sysctl hw.physicalcpu
+	CPUModel         string `loglevel:"dangerous"` // 型号字串；mac: sysctl machdep.cpu.brand_string
 
 	// Memory. (both)
-	MemoryBytes int64 // 物理总内存字节数；mac: sysctl hw.memsize
+	MemoryBytes int64 `loglevel:"dangerous"` // 物理总内存字节数；mac: sysctl hw.memsize
 
 	// OS version / build. (both)
-	OSVersion     string // 用户可读版本号；mac: "14.x"；win: "11 x"
-	OSBuild       string // 细粒度 build 号；mac: "23xxx"；win: "22xxx.xxx"
-	KernelVersion string // 内核版本；mac: uname -r；win: NT 版本号
+	OSVersion     string `loglevel:"dangerous"` // 用户可读版本号；mac: "14.x"；win: "11 x"
+	OSBuild       string `loglevel:"dangerous"` // 细粒度 build 号；mac: "23xxx"；win: "22xxx.xxx"
+	KernelVersion string `loglevel:"dangerous"` // 内核版本；mac: uname -r；win: NT 版本号
 
 	// Linux-only hints. (linux; mac/win 留空)
-	Distro      string // Linux 发行版标识
-	SessionType string // XDG_SESSION_TYPE：wayland / x11 / tty
+	Distro      string `loglevel:"dangerous"` // Linux 发行版标识
+	SessionType string `loglevel:"dangerous"` // XDG_SESSION_TYPE：wayland / x11 / tty
 
 	// Virtualization / emulation hint. (all; TASK-105 / Phase 2 实现)
-	Virtualization string // 可能值："rosetta" / "wsl" / "docker" / "vm" / ""
+	Virtualization string `loglevel:"dangerous"` // 可能值："rosetta" / "wsl" / "docker" / "vm" / ""
 }
 
 // ProcessBlock 是 Schema v1 中 process 分组的 Go 映射：
@@ -57,39 +65,39 @@ type RuntimeBlock struct {
 // 另一边留零值或哨位（数值 -1、字符串空、bool false、slice nil、
 // Time 零值）。Linux 不作为一等目标——合辙则顺带可用，不合辙留空。
 type ProcessBlock struct {
-	// Kernel process IDs.
-	PID  int // (both) Process ID：本进程在 kernel 里的唯一编号
-	PPID int // (both) Parent PID：fork/exec（mac）/ CreateProcess（win）本进程的父进程
-	PGID int // (mac)  Process Group ID：进程组号，用于信号投递与前后台作业控制；win 留 -1
-	SID  int // (mac)  Unix Session ID：进程组的集合，绑定控制终端；win 留 -1（Windows 登录会话见 WindowsSessionID）
-
-	// Unix numeric user / group identity. (mac; win 留 -1)
-	UID  int // real user ID：启动本进程的用户
-	EUID int // effective user ID：权限判定实际使用的 UID（setuid 后可与 UID 不同）
-	GID  int // real group ID：用户主组
-	EGID int // effective group ID：权限判定实际使用的 GID
+	// Invocation shape. (both)
+	Argv []string `loglevel:"debug"` // 完整命令行参数（含 argv[0]）；nil 表示不可用
+	CWD  string   `loglevel:"debug"` // current working directory；"<err: ...>" 表示 os.Getwd() 失败
 
 	// 跨平台的可读 user / group 名. (both)
-	Username  string // 登录名；mac: 例如 "alice"；win: "DOMAIN\\user" 或 "user"
-	Groupname string // 主组名；mac: 例如 "staff"；win: 若可解析为可读名，否则为空
+	Username  string `loglevel:"dangerous"` // 登录名；mac: 例如 "alice"；win: "DOMAIN\\user" 或 "user"
+	Groupname string `loglevel:"dangerous"` // 主组名；mac: 例如 "staff"；win: 若可解析为可读名，否则为空
+
+	// Kernel process IDs.
+	PID  int `loglevel:"dangerous"` // (both) Process ID：本进程在 kernel 里的唯一编号
+	PPID int `loglevel:"dangerous"` // (both) Parent PID：fork/exec（mac）/ CreateProcess（win）本进程的父进程
+	PGID int `loglevel:"dangerous"` // (mac)  Process Group ID：进程组号，用于信号投递与前后台作业控制；win 留 -1
+	SID  int `loglevel:"dangerous"` // (mac)  Unix Session ID：进程组的集合，绑定控制终端；win 留 -1（Windows 登录会话见 WindowsSessionID）
+
+	// Unix numeric user / group identity. (mac; win 留 -1)
+	UID  int `loglevel:"dangerous"` // real user ID：启动本进程的用户
+	EUID int `loglevel:"dangerous"` // effective user ID：权限判定实际使用的 UID（setuid 后可与 UID 不同）
+	GID  int `loglevel:"dangerous"` // real group ID：用户主组
+	EGID int `loglevel:"dangerous"` // effective group ID：权限判定实际使用的 GID
 
 	// Windows-specific identity. (win; mac 留空)
-	WindowsUserSID        string // 用户 SID，如 "S-1-5-21-..."
-	WindowsGroupSID       string // 主组 SID
-	WindowsSessionID      int    // 登录会话号；0=services session；1+ 为交互登录；mac 留 -1
-	WindowsDomain         string // 登录域；即 "DOMAIN\\user" 中 DOMAIN 部分
-	WindowsIntegrityLevel string // 进程完整性等级：Low / Medium / High / System
-	WindowsElevated       bool   // 是否以管理员运行；对应 token 的 Elevation 标志
-
-	// Invocation shape. (both)
-	Argv []string // 完整命令行参数（含 argv[0]）；nil 表示不可用
-	CWD  string   // current working directory；"<err: ...>" 表示 os.Getwd() 失败
+	WindowsUserSID        string `loglevel:"dangerous"` // 用户 SID，如 "S-1-5-21-..."
+	WindowsGroupSID       string `loglevel:"dangerous"` // 主组 SID
+	WindowsSessionID      int    `loglevel:"dangerous"` // 登录会话号；0=services session；1+ 为交互登录；mac 留 -1
+	WindowsDomain         string `loglevel:"dangerous"` // 登录域；即 "DOMAIN\\user" 中 DOMAIN 部分
+	WindowsIntegrityLevel string `loglevel:"dangerous"` // 进程完整性等级：Low / Medium / High / System
+	WindowsElevated       bool   `loglevel:"dangerous"` // 是否以管理员运行；对应 token 的 Elevation 标志
 
 	// Time. (both；两边都需平台代码实现，stdlib 不直接给)
-	StartTime time.Time // 本进程启动时刻（wall-clock）
+	StartTime time.Time `loglevel:"dangerous"` // 本进程启动时刻（wall-clock）
 }
 
-// ChainBlock 是 Schema v1 中 chain 分组的 Go 映射：
+// ChainBlockLayers 是 Schema v1 中 chain 分组的 Go 映射：
 // 从直接父进程（os.Getppid()）沿 ppid 向上回溯，采集每一层祖先的
 // 身份快照，直至命中语义停止条件。
 //
@@ -106,13 +114,13 @@ type ProcessBlock struct {
 //
 // **本 block 只记录 ps 直接返回的信息**，不做角色分类 / 指纹
 // 匹配等二次判定——那些逻辑归特征指纹章节。
-type ChainBlock struct {
-	Depth       int          // len(Layers) 冗余存，便于快速筛选 / 诊断
-	Termination string       // 见上方枚举：init / cycle / query_failed / orphan / depth_cap
-	Layers      []ChainLayer // 从 index 0（直接父进程）开始向上
+type ChainBlockLayers struct {
+	Depth       int          `loglevel:"dangerous"` // len(Layers) 冗余存，便于快速筛选 / 诊断
+	Termination string       `loglevel:"dangerous"` // 见上方枚举：init / cycle / query_failed / orphan / depth_cap
+	Layers      []ChainBlock // 从 index 0（直接父进程）开始向上；不打印，由 for loop 单独打印每个 layer
 }
 
-// ChainLayer 祖先链单层快照：仅保存 ps 直接返回的原始字段。
+// ChainBlock 祖先链单层快照：仅保存 ps 直接返回的原始字段。
 //
 // 原始字段来自 `ps -o pid=,ppid=,pgid=,sess=,uid=,tty=,user=,lstart=,comm=,command=`；
 // 整数字段解析失败或平台不适用留哨位 -1（0 在 uid/pid/sid 等字段
@@ -123,30 +131,32 @@ type ChainBlock struct {
 //
 // 角色分类 / 规则匹配 等二次判定不在本结构里做——留给特征指纹章
 // 节处理（见 .context/current-task.md 第八节）。
-type ChainLayer struct {
+type ChainBlock struct {
+	// Invocation shape.
+	Comm    string `loglevel:"debug"` // 可执行 basename（ps -o comm=）；登录 shell 会带 "-" 前缀
+	Command string `loglevel:"debug"` // 完整 argv 字串（ps -o command=）
+
 	// Kernel process IDs. (mac)
-	PID  int // 本层 pid
-	PPID int // 本层父 pid（决定下一跳）
-	PGID int // (mac) 进程组号；win 留 -1
-	SID  int // (mac) Unix Session ID；win 留 -1
+	PID  int `loglevel:"dangerous"` // 本层 pid
+	PPID int `loglevel:"dangerous"` // 本层父 pid（决定下一跳）
+	PGID int `loglevel:"dangerous"` // (mac) 进程组号；win 留 -1
+	SID  int `loglevel:"dangerous"` // (mac) Unix Session ID；win 留 -1
 
 	// Identity. (mac)
-	UID      int    // 本层实际运行用户 uid；win 留 -1
-	Username string // ps -o user= 输出
+	UID      int    `loglevel:"dangerous"` // 本层实际运行用户 uid；win 留 -1
+	Username string `loglevel:"dangerous"` // ps -o user= 输出
 
-	// Invocation shape.
-	Comm    string // 可执行 basename（ps -o comm=）；登录 shell 会带 "-" 前缀
-	Command string // 完整 argv 字串（ps -o command=）
-	TTY     string // 控制终端，如 "ttys003"；"??" 表示无 tty
+	// TTY.
+	TTY string `loglevel:"dangerous"` // 控制终端，如 "ttys003"；"??" 表示无 tty
 
 	// Time (ps 原样字符串；time.Time 解析留给消费者).
-	Lstart string // 如 "Sun Apr 19 12:00:00 2026"
+	Lstart string `loglevel:"dangerous"` // 如 "Sun Apr 19 12:00:00 2026"
 
 	// Raw fallback: 防解析失败丢信息.
-	RawPsLine string // ps 整行输出原样
+	RawPsLine string `loglevel:"dangerous"` // ps 整行输出原样
 }
 
-// EnvBlock 环境变量快照：按 family 分组 + 兜底 Uncategorized + 全量 Raw。
+// EnvBlockLayers 环境变量快照：按 family 分组 + 兜底 Uncategorized + 全量 Raw。
 //
 // 设计原则：
 //   - **扁平**：顶层 14 个字段（12 family + Uncategorized + Raw），不嵌套
@@ -164,22 +174,44 @@ type ChainLayer struct {
 //
 // **本 block 只记录 os.Environ() 直接返回的信息**，不做语义判定 / 值解析
 // （例如不解析 PATH 为 []string、不把 CI 值转 bool） —— 消费者自行处理。
-type EnvBlock struct {
-	// 12 个 family，按特异性从窄到宽排列（和匹配优先级一致）
+type EnvBlockLayers struct {
+	// Platform 组（专用 struct，用 printBlockByReflect 打印）
+	Platform EnvPlatformBlock // PATH / HOME / USERPROFILE / TMPDIR / TEMP / TMP / APPDATA / LOCALAPPDATA
+
+	// Shell 组（专用 struct，用 printBlockByReflect 打印）
+	Shell EnvShellBlock // PSModulePath
+
+	// 11 个 map family，按特异性从窄到宽排列（和匹配优先级一致）
 	ExtensionHost map[string]string // VSCODE_CRASH_REPORTER_PROCESS_TYPE / VSCODE_PID / VSCODE_IPC_HOOK / VSCODE_ESM_ENTRYPOINT / VSCODE_NLS_CONFIG
 	IDE           map[string]string // 前缀：VSCODE_ / WINDSURF_ / CURSOR_ / CASCADE_ / JETBRAINS_ / IDEA_ / PYCHARM_
 	Session       map[string]string // SSH_CONNECTION / SSH_CLIENT / SSH_TTY / TMUX / STY
 	CI            map[string]string // CI / GITHUB_ACTIONS / GITLAB_CI / CIRCLECI / BUILDKITE / JENKINS_URL / TRAVIS
 	Remote        map[string]string // KUBERNETES_SERVICE_HOST / IN_NIX_SHELL
 	Terminal      map[string]string // TERM / TERM_PROGRAM / TERM_PROGRAM_VERSION / COLORTERM / LC_TERMINAL / KITTY_WINDOW_ID / WEZTERM_EXECUTABLE / ALACRITTY_SOCKET / TERMINAL_EMULATOR
-	ShellVersion  map[string]string // BASH_VERSION / ZSH_VERSION / FISH_VERSION / PSModulePath
+	ShellVersion  map[string]string // BASH_VERSION / ZSH_VERSION / FISH_VERSION
 	Editor        map[string]string // EDITOR / VISUAL / PAGER
 	Locale        map[string]string // LANG / LC_* (LC_TERMINAL 除外，已归 Terminal)
-	Path          map[string]string // PATH
-	User          map[string]string // Unix: USER / LOGNAME / HOME / TMPDIR；Windows: USERPROFILE / APPDATA / LOCALAPPDATA / USERDOMAIN / TEMP / TMP
+	User          map[string]string // Unix: USER / LOGNAME；Windows: USERDOMAIN
 	ShellPref     map[string]string // SHELL
 
 	// 兜底两道防线
 	Uncategorized map[string]string // 未命中任何 family 的 env
 	Raw           []string          // os.Environ() 全量原样，"KEY=VALUE" 格式，保留顺序和重复
+}
+
+// EnvPlatformBlock Platform 组的专用输出结构，用 printBlockByReflect 打印。
+type EnvPlatformBlock struct {
+	Path         string `loglevel:"debug"`
+	HOME         string `loglevel:"debug"` // Mac
+	USERPROFILE  string `loglevel:"debug"` // Windows
+	TMPDIR       string `loglevel:"debug"` // Mac
+	TEMP         string `loglevel:"debug"` // Windows
+	TMP          string `loglevel:"debug"` // Windows
+	APPDATA      string `loglevel:"debug"` // Windows
+	LOCALAPPDATA string `loglevel:"debug"` // Windows
+}
+
+// EnvShellBlock Shell 组的专用输出结构，用 printBlockByReflect 打印。
+type EnvShellBlock struct {
+	PSModulePath string `loglevel:"debug"` // Windows PowerShell
 }

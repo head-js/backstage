@@ -6,6 +6,7 @@ import (
 	"os/exec"
 	"os/user"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strconv"
@@ -24,7 +25,7 @@ import (
 // 便于现有回归命令可用；归类模型待样本充足后再设计。
 //
 // 信号分块（各块 schema 定义详见 internal/agent/types.go；当前
-// RuntimeBlock / ProcessBlock / ChainBlock / EnvBlock 已落地）：
+// RuntimeBlock / ProcessBlock / ChainBlockLayers / EnvBlockLayers 已落地）：
 //
 //	runtime  (宿主环境)
 //	process  (本进程)
@@ -32,29 +33,68 @@ import (
 //	env      (按 family 分组 + uncategorized + raw 全量；TASK-103 旧 D/E 二分已合并)
 //
 // stdio 信号不再作为独立块，改由特征指纹 FP-01 承载（见 .context/current-task.md 第八节）。
-func Hasshin(logLevel string) {
-	fmt.Fprintln(os.Stderr, "[HASSHIN]")
-	_ = dumpRuntimeBlock()
-	_ = dumpProcessBlock()
-	chainBlock := dumpChainBlock()
-	_ = dumpEnvBlock()
+func Hasshin(logLevel LogLevel) {
+	fmt.Fprintln(os.Stdout, "[HASSHIN]")
+	_ = dumpRuntimeBlock(logLevel)
+	_ = dumpProcessBlock(logLevel)
+	chainBlock := dumpChainBlock(logLevel)
+	_ = dumpEnvBlock(logLevel)
 
-	// ========== Final: legacy whitelist match ==========
-	fmt.Fprintln(os.Stderr, "[hasshin] --- final ---")
-	var parentComm string
-	if len(chainBlock.Layers) > 0 {
-		parentComm = chainBlock.Layers[0].Comm
-	}
-	name := filepath.Base(parentComm)
-	name = strings.TrimPrefix(name, "-")
-	fmt.Fprintf(os.Stderr, "  normalized parent comm: %q\n", name)
+	// ========== Final ==========
+	// fmt.Fprintln(os.Stderr, "[HASSHIN] ---- Final ----")
 
-	switch name {
-	case "bash", "zsh", "sh", "fish":
-		fmt.Fprintf(os.Stderr, "  result: %q\n", name)
-	default:
-		fmt.Fprintf(os.Stderr, "  result: %q\n", "unknown")
+	var normalized []string
+	seen := make(map[string]bool)
+
+	for _, layer := range chainBlock.Layers {
+		evalPath := parseExePath(layer.Command)
+		if evalPath == "" {
+			continue
+		}
+		if !seen[evalPath] {
+			seen[evalPath] = true
+			normalized = append(normalized, evalPath)
+		}
 	}
+
+	for _, p := range normalized {
+		fmt.Fprintln(os.Stderr, p)
+	}
+}
+
+// parseExePath 从 Command 字符串中提取第一个可执行路径并标准化。
+// 处理带引号的路径，解析符号链接、.. 和 .。
+func parseExePath(cmd string) string {
+	cmd = strings.TrimSpace(cmd)
+	if cmd == "" {
+		return ""
+	}
+
+	var exePath string
+	if cmd[0] == '"' {
+		if end := strings.Index(cmd[1:], "\""); end >= 0 {
+			exePath = cmd[1 : end+1]
+		}
+	} else {
+		if idx := strings.Index(cmd, " "); idx >= 0 {
+			exePath = cmd[:idx]
+		} else {
+			exePath = cmd
+		}
+	}
+	if exePath == "" {
+		return ""
+	}
+
+	absPath, err := filepath.Abs(exePath)
+	if err != nil {
+		absPath = exePath
+	}
+	evalPath, err := filepath.EvalSymlinks(absPath)
+	if err != nil {
+		evalPath = absPath
+	}
+	return filepath.Clean(evalPath)
 }
 
 // dumpRuntimeBlock 采集并输出 runtime 块（宿主环境快照）：os / arch /
@@ -65,7 +105,7 @@ func Hasshin(logLevel string) {
 // （见 collectDarwinRuntime）；linux / windows 的平台代码留待
 // TASK-105 或 Phase 2。在非 mac 平台上运行时，mac 侧专属字段保持
 // 零值 / 空串。
-func dumpRuntimeBlock() RuntimeBlock {
+func dumpRuntimeBlock(logLevel LogLevel) RuntimeBlock {
 	b := RuntimeBlock{
 		OS:       runtime.GOOS,
 		Arch:     runtime.GOARCH,
@@ -80,17 +120,45 @@ func dumpRuntimeBlock() RuntimeBlock {
 	switch runtime.GOOS {
 	case "darwin":
 		collectDarwinRuntime(&b)
-		// case "linux":   // TASK-105 / Phase 2
-		// case "windows": // TASK-105 / Phase 2
 	}
 
-	fmt.Fprintf(os.Stderr, "---- Runtime ----\n")
-	fmt.Fprintf(os.Stderr, "  os=%q arch=%q hostname=%q\n", b.OS, b.Arch, b.Hostname)
-	fmt.Fprintf(os.Stderr, "  cpu_count=%d cpu_cores_physical=%d cpu_model=%q\n", b.CPUCount, b.CPUCoresPhysical, b.CPUModel)
-	fmt.Fprintf(os.Stderr, "  memory_bytes=%d\n", b.MemoryBytes)
-	fmt.Fprintf(os.Stderr, "  os_version=%q os_build=%q kernel_version=%q\n", b.OSVersion, b.OSBuild, b.KernelVersion)
-	fmt.Fprintf(os.Stderr, "  distro=%q session_type=%q virtualization=%q\n", b.Distro, b.SessionType, b.Virtualization)
+	if logLevel >= LogLevelDebug {
+		printBlockByReflect(b, logLevel, "Runtime")
+	}
+
 	return b
+}
+
+func printBlockByReflect(block interface{}, logLevel LogLevel, blockName string) {
+	fmt.Fprintf(os.Stderr, "---- %s ----\n", blockName)
+
+	v := reflect.ValueOf(block)
+	t := v.Type()
+
+	for i := 0; i < t.NumField(); i++ {
+		field := t.Field(i)
+		tag := field.Tag.Get("loglevel")
+
+		fieldLevel := parseLogLevel(tag)
+		if logLevel >= fieldLevel {
+			fieldName := field.Name
+			fieldValue := v.Field(i).Interface()
+			fmt.Fprintf(os.Stderr, "  %s: %v\n", fieldName, fieldValue)
+		}
+	}
+}
+
+func parseLogLevel(s string) LogLevel {
+	switch s {
+	case "info":
+		return LogLevelInfo
+	case "debug":
+		return LogLevelDebug
+	case "dangerous":
+		return LogLevelDangerous
+	default:
+		return LogLevelInfo
+	}
 }
 
 // collectDarwinRuntime 填充 RuntimeBlock 的 mac 侧字段，通过 sw_vers / uname /
@@ -143,7 +211,7 @@ func setExecInt64(dst *int64, name string, args ...string) {
 // 平台分派：当前仅填充跨平台 stdlib 能给出的字段；Unix-only 数值 ID
 // （pgid / sid / gid / egid）及 Windows 专属字段（SID / SessionID /
 // domain / integrity / elevated）留待 TASK-105 / Phase 2 填充。
-func dumpProcessBlock() ProcessBlock {
+func dumpProcessBlock(logLevel LogLevel) ProcessBlock {
 	b := ProcessBlock{
 		PID:  os.Getpid(),
 		PPID: os.Getppid(),
@@ -161,10 +229,13 @@ func dumpProcessBlock() ProcessBlock {
 	} else {
 		b.CWD = fmt.Sprintf("<err: %v>", err)
 	}
-	fmt.Fprintf(os.Stderr, "---- Process ----\n")
-	fmt.Fprintf(os.Stderr, "  pid=%d ppid=%d uid=%d euid=%d username=%q\n", b.PID, b.PPID, b.UID, b.EUID, b.Username)
-	fmt.Fprintf(os.Stderr, "  cwd=%q\n", b.CWD)
-	fmt.Fprintf(os.Stderr, "  argv=%q\n", b.Argv)
+
+	collectPlatformProcess(&b)
+
+	if logLevel >= LogLevelDebug {
+		printBlockByReflect(b, logLevel, "Process")
+	}
+
 	return b
 }
 
@@ -175,7 +246,7 @@ const maxChainDepth = 64
 // dumpChainBlock 采集 C 块（chain，祖先链快照）并写入 stderr。
 //
 // 策略：从 os.Getppid() 起沿 ppid 上爬；以语义停止条件终止
-// （见 ChainBlock doc）。**本函数只采集 ps 直接返回的原始信息**
+// （见 ChainBlockLayers doc）。**本函数只采集 ps 直接返回的原始信息**
 // （原始字段 + RawPsLine 全量保留），不做角色分类 / 指纹匹配等
 // 二次判定 —— 那些逻辑归特征指纹章节处理（见 .context/current-task.md
 // 第八节）。
@@ -187,8 +258,8 @@ const maxChainDepth = 64
 // 返回值 parentComm 是 layers[0].Comm（即 os.Getppid() 的 ps -o comm=
 // 原值，可能带 "-" 前缀），供 Hasshin final whitelist 段沿用老逻辑。
 // 链为空时返回 ""。
-func dumpChainBlock() ChainBlock {
-	b := ChainBlock{}
+func dumpChainBlock(logLevel LogLevel) ChainBlockLayers {
+	b := ChainBlockLayers{}
 	visited := make(map[int]bool)
 	cur := os.Getppid()
 
@@ -213,8 +284,9 @@ func dumpChainBlock() ChainBlock {
 
 		layer, err := queryChainLayerOS(cur)
 		if err != nil {
+			// 失败层暂不记录
 			// 失败层也记录进来：保留 pid + 错误详情，不丢信息
-			b.Layers = append(b.Layers, layer)
+			// b.Layers = append(b.Layers, layer)
 			b.Termination = "query_failed"
 			break
 		}
@@ -231,14 +303,10 @@ func dumpChainBlock() ChainBlock {
 	}
 	b.Depth = len(b.Layers)
 
-	fmt.Fprintf(os.Stderr, "---- Chain ----\n")
-	fmt.Fprintf(os.Stderr, "  depth=%d termination=%q\n", b.Depth, b.Termination)
-	for i, l := range b.Layers {
-		fmt.Fprintf(os.Stderr, "  layer[%d] pid=%d ppid=%d pgid=%d sid=%d uid=%d username=%q\n",
-			i, l.PID, l.PPID, l.PGID, l.SID, l.UID, l.Username)
-		fmt.Fprintf(os.Stderr, "           comm=%q tty=%q lstart=%q\n", l.Comm, l.TTY, l.Lstart)
-		fmt.Fprintf(os.Stderr, "           command=%q\n", l.Command)
-		fmt.Fprintf(os.Stderr, "           raw_ps_line=%q\n", l.RawPsLine)
+	if logLevel >= LogLevelDebug {
+		for i, layer := range b.Layers {
+			printBlockByReflect(layer, logLevel, fmt.Sprintf("Chain - %d", i+1))
+		}
 	}
 	return b
 }
@@ -255,7 +323,6 @@ var envExactMap = map[string]string{
 	"BASH_VERSION": "ShellVersion",
 	"ZSH_VERSION":  "ShellVersion",
 	"FISH_VERSION": "ShellVersion",
-	"PSModulePath": "ShellVersion",
 
 	// Terminal
 	"TERM":                 "Terminal",
@@ -303,24 +370,12 @@ var envExactMap = map[string]string{
 	"VISUAL": "Editor",
 	"PAGER":  "Editor",
 
-	// Path
-	"PATH": "Path",
-
-	// User (Unix)
+	// User (Unix) — 用户身份相关
 	"USER":    "User",
 	"LOGNAME": "User",
-	"HOME":    "User",
-	"TMPDIR":  "User",
 
-	// User (Windows; key 存 UPPER 形式，Windows 的 case-insensitive fallback
-	// 会命中。以下只放 "用户身份 / 路径" 相关键；机器级 / 系统级
-	// 键（COMPUTERNAME / SYSTEMROOT / WINDIR）不归 User，留 Uncategorized。）
-	"USERPROFILE":  "User",
-	"APPDATA":      "User",
-	"LOCALAPPDATA": "User",
-	"USERDOMAIN":   "User",
-	"TEMP":         "User",
-	"TMP":          "User",
+	// User (Windows) — 用户身份相关
+	"USERDOMAIN": "User",
 }
 
 // envPrefixRules 前缀匹配规则，按顺序逐条试；exact 不命中才查这里。
@@ -380,10 +435,10 @@ func classifyEnvKey(key string) string {
 	return ""
 }
 
-// mapForFamily 返回 EnvBlock 里指定 family 对应的 map 指针。
+// mapForFamily 返回 EnvBlockLayers 里指定 family 对应的 map 指针。
 // family 名必须与 envExactMap / envPrefixRules 的 family 字段一致；
 // 不识别的返回 Uncategorized 兜底。
-func (b *EnvBlock) mapForFamily(family string) *map[string]string {
+func (b *EnvBlockLayers) mapForFamily(family string) *map[string]string {
 	switch family {
 	case "ExtensionHost":
 		return &b.ExtensionHost
@@ -403,8 +458,6 @@ func (b *EnvBlock) mapForFamily(family string) *map[string]string {
 		return &b.Editor
 	case "Locale":
 		return &b.Locale
-	case "Path":
-		return &b.Path
 	case "User":
 		return &b.User
 	case "ShellPref":
@@ -419,25 +472,54 @@ func (b *EnvBlock) mapForFamily(family string) *map[string]string {
 // 策略：
 //   - Raw 保留 os.Environ() 原样（顺序 + 重复），不丢信息的第一道防线
 //   - 每个 env 走 classifyEnvKey 单归属到 family，归不到进 Uncategorized
-//   - stderr 按 family 顺序打（空 family 跳过 header），uncategorized 之后
-//     打全量 key 清单（按字母排序），便于扫视和跨样本 diff
-func dumpEnvBlock() EnvBlock {
-	b := EnvBlock{
-		Raw: os.Environ(), // 全量原样
+//   - stderr 按 family 顺序打（空 family 跳过 header）
+func dumpEnvBlock(logLevel LogLevel) EnvBlockLayers {
+	b := EnvBlockLayers{
+		Raw: os.Environ(),
 	}
+	b.Platform.Path = os.Getenv("PATH")
+	b.Platform.HOME = os.Getenv("HOME")
+	b.Platform.USERPROFILE = os.Getenv("USERPROFILE")
+	b.Platform.TMPDIR = os.Getenv("TMPDIR")
+	b.Platform.TEMP = os.Getenv("TEMP")
+	b.Platform.TMP = os.Getenv("TMP")
+	b.Platform.APPDATA = os.Getenv("APPDATA")
+	b.Platform.LOCALAPPDATA = os.Getenv("LOCALAPPDATA")
+	b.Shell.PSModulePath = os.Getenv("PSModulePath")
 
-	allKeys := make([]string, 0, len(b.Raw))
+	platformKeys := []string{"PATH", "HOME", "USERPROFILE", "TMPDIR", "TEMP", "TMP", "APPDATA", "LOCALAPPDATA"}
+	shellKeys := []string{"PSMODULEPATH"}
+
 	for _, kv := range b.Raw {
 		var key, val string
 		if eq := strings.IndexByte(kv, '='); eq < 0 {
-			// 罕见：env 里没有 = 的条目（不合规但理论可能）
 			key = kv
 			val = ""
 		} else {
 			key = kv[:eq]
 			val = kv[eq+1:]
 		}
-		allKeys = append(allKeys, key)
+
+		// Platform / Shell 字段已单独处理，不归入其他 family
+		upperKey := strings.ToUpper(key)
+		skipKey := false
+		for _, pk := range platformKeys {
+			if upperKey == pk {
+				skipKey = true
+				break
+			}
+		}
+		if !skipKey {
+			for _, sk := range shellKeys {
+				if upperKey == sk {
+					skipKey = true
+					break
+				}
+			}
+		}
+		if skipKey {
+			continue
+		}
 
 		target := b.mapForFamily(classifyEnvKey(key))
 		if *target == nil {
@@ -446,32 +528,29 @@ func dumpEnvBlock() EnvBlock {
 		(*target)[key] = val
 	}
 
-	// stderr 输出（按 family 顺序；空 family 跳过 header）
-	fmt.Fprintf(os.Stderr, "---- Env ----\n")
-	printEnvFamily("extension_host", b.ExtensionHost)
-	printEnvFamily("ide", b.IDE)
-	printEnvFamily("session", b.Session)
-	printEnvFamily("ci", b.CI)
-	printEnvFamily("remote", b.Remote)
-	printEnvFamily("terminal", b.Terminal)
-	printEnvFamily("shell_version", b.ShellVersion)
-	printEnvFamily("editor", b.Editor)
-	printEnvFamily("locale", b.Locale)
-	printEnvFamily("path", b.Path)
-	printEnvFamily("user", b.User)
-	printEnvFamily("shell_pref", b.ShellPref)
-	printEnvFamily("uncategorized", b.Uncategorized)
+	if logLevel >= LogLevelDebug {
+		printBlockByReflect(b.Platform, logLevel, "Env - Platform")
+		printBlockByReflect(b.Shell, logLevel, "Env - Shell")
+	}
 
-	// 全量 key 清单，按字母排序（便于扫视和跨样本 diff）
-	sortedKeys := append([]string(nil), allKeys...)
-	sort.Strings(sortedKeys)
-	fmt.Fprintf(os.Stderr, "  all_keys (N=%d, sorted):\n    %s\n",
-		len(sortedKeys), strings.Join(sortedKeys, " "))
+	if logLevel >= LogLevelDebug {
+		fmt.Fprintf(os.Stderr, "---- Env ----\n")
+		printEnvFamily("extension_host", b.ExtensionHost)
+		printEnvFamily("ide", b.IDE)
+		printEnvFamily("session", b.Session)
+		printEnvFamily("ci", b.CI)
+		printEnvFamily("remote", b.Remote)
+		printEnvFamily("terminal", b.Terminal)
+		printEnvFamily("shell_version", b.ShellVersion)
+		printEnvFamily("editor", b.Editor)
+		printEnvFamily("locale", b.Locale)
+		printEnvFamily("user", b.User)
+		printEnvFamily("shell_pref", b.ShellPref)
+		printEnvFamily("uncategorized", b.Uncategorized)
+	}
 	return b
 }
 
-// printEnvFamily 打一个 family 块到 stderr；空 map 跳过不打 header。
-// family 内 key 按字母排序，便于阅读和跨样本 diff。
 func printEnvFamily(label string, m map[string]string) {
 	if len(m) == 0 {
 		return

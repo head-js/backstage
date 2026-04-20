@@ -9,7 +9,7 @@ import (
 	"com.lisitede.backstage/framework"
 )
 
-func queryChainLayerOS(pid int) (ChainLayer, error) {
+func queryChainLayerOS(pid int) (ChainBlock, error) {
 	msg := fmt.Sprintf("chain query on %s", runtime.GOOS)
-	return ChainLayer{}, framework.NotImplementedException(msg)
+	return ChainBlock{}, framework.NotImplementedException(msg)
 }
