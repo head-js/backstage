@@ -231,9 +231,6 @@ func dumpChainBlock(logLevel LogLevel) ChainBlockLayers {
 // 特异 key 放 exact（如 VSCODE_CRASH_REPORTER_PROCESS_TYPE 归 ExtensionHost，
 // 而非让前缀匹配吃进 IDE）；同家族的通用 key 走 prefix。
 var envExactMap = map[string]string{
-	// ShellPref
-	"SHELL": "ShellPref",
-
 	// ShellVersion
 	"BASH_VERSION": "ShellVersion",
 	"ZSH_VERSION":  "ShellVersion",
@@ -400,10 +397,43 @@ func dumpEnvBlock(logLevel LogLevel) EnvBlockLayers {
 	b.Platform.TMP = os.Getenv("TMP")
 	b.Platform.APPDATA = os.Getenv("APPDATA")
 	b.Platform.LOCALAPPDATA = os.Getenv("LOCALAPPDATA")
+	b.Shell.SHELL = os.Getenv("SHELL")
+	b.Shell.MSYS_NO_PATHCONV = os.Getenv("MSYS_NO_PATHCONV")
 	b.Shell.PSModulePath = os.Getenv("PSModulePath")
+	b.KiloCode.KILO_PLATFORM = os.Getenv("KILO_PLATFORM")
+	b.KiloCode.KILO_APP_NAME = os.Getenv("KILO_APP_NAME")
+	b.KiloCode.KILO_APP_VERSION = os.Getenv("KILO_APP_VERSION")
+	b.KiloCode.KILO_DISABLE_AUTOUPDATE = os.Getenv("KILO_DISABLE_AUTOUPDATE")
+	b.KiloCode.KILO_DISABLE_CLAUDE_CODE = os.Getenv("KILO_DISABLE_CLAUDE_CODE")
+	b.KiloCode.KILO_ENABLE_QUESTION_TOOL = os.Getenv("KILO_ENABLE_QUESTION_TOOL")
+	b.KiloCode.KILO_EDITOR_NAME = os.Getenv("KILO_EDITOR_NAME")
+	b.KiloCode.KILOCODE_EDITOR_NAME = os.Getenv("KILOCODE_EDITOR_NAME")
+	b.KiloCode.KILOCODE_VERSION = os.Getenv("KILOCODE_VERSION")
+	b.KiloCode.KILOCODE_FEATURE = os.Getenv("KILOCODE_FEATURE")
+	b.KiloCode.KILO_CLIENT = os.Getenv("KILO_CLIENT")
+	b.KiloCode.KILO_VSCODE_VERSION = os.Getenv("KILO_VSCODE_VERSION")
+	b.KiloCode.KILO_TELEMETRY_LEVEL = os.Getenv("KILO_TELEMETRY_LEVEL")
+	b.KiloCode.KILO_MACHINE_ID = os.Getenv("KILO_MACHINE_ID")
+	b.KiloCode.KILO_PID = os.Getenv("KILO_PID")
+	b.KiloCode.KILO_SERVER_PASSWORD = os.Getenv("KILO_SERVER_PASSWORD")
+	b.Flutter.PUB_HOSTED_URL = os.Getenv("PUB_HOSTED_URL")
+	b.Flutter.FLUTTER_STORAGE_BASE_URL = os.Getenv("FLUTTER_STORAGE_BASE_URL")
 
-	platformKeys := []string{"PATH", "HOME", "USERPROFILE", "TMPDIR", "TEMP", "TMP", "APPDATA", "LOCALAPPDATA"}
-	shellKeys := []string{"PSMODULEPATH"}
+	// skipKeys 内的所有 key 均已大写化，直接与 upperKey 匹配
+	skipKeys := map[string]struct{}{
+		// Platform
+		"PATH": {}, "HOME": {}, "USERPROFILE": {}, "TMPDIR": {}, "TEMP": {}, "TMP": {}, "APPDATA": {}, "LOCALAPPDATA": {},
+		// Shell
+		"SHELL": {}, "MSYS_NO_PATHCONV": {}, "PSMODULEPATH": {},
+		// KiloCode
+		"KILO_PLATFORM": {}, "KILO_APP_NAME": {}, "KILO_APP_VERSION": {}, "KILO_DISABLE_AUTOUPDATE": {},
+		"KILO_DISABLE_CLAUDE_CODE": {}, "KILO_ENABLE_QUESTION_TOOL": {},
+		"KILO_EDITOR_NAME": {}, "KILOCODE_EDITOR_NAME": {}, "KILOCODE_VERSION": {}, "KILOCODE_FEATURE": {},
+		"KILO_CLIENT": {}, "KILO_VSCODE_VERSION": {}, "KILO_TELEMETRY_LEVEL": {},
+		"KILO_MACHINE_ID": {}, "KILO_PID": {}, "KILO_SERVER_PASSWORD": {},
+		// Flutter
+		"PUB_HOSTED_URL": {}, "FLUTTER_STORAGE_BASE_URL": {},
+	}
 
 	for _, kv := range b.Raw {
 		var key, val string
@@ -415,24 +445,9 @@ func dumpEnvBlock(logLevel LogLevel) EnvBlockLayers {
 			val = kv[eq+1:]
 		}
 
-		// Platform / Shell 字段已单独处理，不归入其他 family
+		// Platform / Shell / KiloCode / Flutter 字段已单独处理，不归入其他 family
 		upperKey := strings.ToUpper(key)
-		skipKey := false
-		for _, pk := range platformKeys {
-			if upperKey == pk {
-				skipKey = true
-				break
-			}
-		}
-		if !skipKey {
-			for _, sk := range shellKeys {
-				if upperKey == sk {
-					skipKey = true
-					break
-				}
-			}
-		}
-		if skipKey {
+		if _, exists := skipKeys[upperKey]; exists {
 			continue
 		}
 
@@ -446,6 +461,8 @@ func dumpEnvBlock(logLevel LogLevel) EnvBlockLayers {
 	if logLevel >= LogLevelDebug {
 		printBlockByReflect(b.Platform, logLevel, "Env - Platform")
 		printBlockByReflect(b.Shell, logLevel, "Env - Shell")
+		printBlockByReflect(b.KiloCode, logLevel, "Env - KiloCode")
+		printBlockByReflect(b.Flutter, logLevel, "Env - Flutter")
 	}
 
 	if logLevel >= LogLevelDebug {

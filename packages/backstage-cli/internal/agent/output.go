@@ -77,16 +77,32 @@ func normalizeChainExe(layers []ChainBlock) []string {
 // 新增条目时请成对补齐同家族的常见变体（无后缀 / " Helper" / ".exe" 等），
 // 避免同一工具因平台差异 / 子进程形态造成链路输出中的身份分裂。
 var knownExeAliases = map[string]string{
+	// macOS
 	"/Windsurf":        "Windsurf",
 	"/Windsurf Helper": "Windsurf",
-	"/Windsurf.exe":    "Windsurf",
 
-	"/iTerm2":        "iTerm2",
-	"/iTerm2.exe":    "iTerm2",
-	"/iTermServer-":  "iTerm2", // 捕获 "/.../iTermServer-3.4.19" 等版本变体（子串匹配）
+	"/iTerm2":       "iTerm2",
+	"/iTermServer-": "iTerm2", // 捕获 "/.../iTermServer-3.4.19" 等版本变体（子串匹配）
 
-	// launchd 是 macOS 系统 PID 1，所有用户态进程的终极祖先，无身份区分价值。
-	"/launchd": "",
+	"/launchd": "", // macOS 系统 PID 1，所有用户态进程的终极祖先，无身份区分价值
+
+	// Windows
+	`\Microsoft VS Code\Code.exe`: "VSCode",
+	`\Windsurf.exe`:               "Windsurf",
+
+	`\Android Studio\bin`: "AndroidStudio",
+
+	`\Git\usr\bin\bash.exe`: "GitBash",
+	`\Git\bin\bash.exe`:     "GitBash",
+
+	`\powershell.exe`:      "PowerShell",
+	`\WindowsTerminal.exe`: "WindowsTerminal",
+	`\System32\cmd.exe`:    "WindowsCmd",
+
+	`\.vscode\extensions\kilocode`: "VSIX-KiloCode",
+	`\plugins\cline\core`:          "JBP-Cline",
+
+	`\explorer.exe`: "", // Windows 资源管理器，无身份区分价值
 }
 
 // exeAliasRule 是 knownExeAliases 展平后的一条匹配规则。
