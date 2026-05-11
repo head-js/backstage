@@ -86,6 +86,10 @@ func init() {
 		return plan.SyncPlanToWiki(params["appId"], params["planId"])
 	})
 
+	planRouter.Verb("GET", "/download-plan/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return plan.DownloadPlan(params["appId"], params["planId"])
+	})
+
 	planRouter.Verb("LIST", "/:appId/:planId/phases", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return plan.ListPhaseOfPlan(params["appId"], params["planId"])
 	})

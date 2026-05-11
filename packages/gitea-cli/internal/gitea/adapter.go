@@ -65,8 +65,12 @@ func (a *Adapter) SearchRepoIssues(owner, repoName string, searchOptions gitea.L
 	if searchOptions.KeyWord != "" {
 		return nil, framework.InvalidFormatException("keyword search is not reliable")
 	}
+	// 当前项目体量较小，直接使用较大的 PageSize 一次性获取
+	// 后续若需跨页分页，可改为 Page 遍历
+	opts := searchOptions
+	opts.PageSize = 100
 
-	issues, _, err := a.client.ListRepoIssues(owner, repoName, searchOptions)
+	issues, _, err := a.client.ListRepoIssues(owner, repoName, opts)
 	return issues, err
 }
 
@@ -230,10 +234,23 @@ func (a *Adapter) ListWikiOfRepo(owner, repo string) ([]*gitea.WikiPageMetaData,
 	return wikis, err
 }
 
-// GetWikiOfRepo 获取仓库指定 Wiki 页面
+// GetWikiOfRepo 获取仓库指定 Wiki 页面（返回 SDK 原始结构 ContentBase64 是 base64 编码）
 func (a *Adapter) GetWikiOfRepo(owner, repo, wikiName string) (*gitea.WikiPage, error) {
 	wiki, _, err := a.client.GetWikiPage(owner, repo, wikiName)
 	return wiki, err
+}
+
+// GetWikiContent 获取仓库指定 Wiki 页面的纯文本内容（自动解码 base64）
+func (a *Adapter) GetWikiContent(owner, repo, wikiName string) (string, error) {
+	wiki, _, err := a.client.GetWikiPage(owner, repo, wikiName)
+	if err != nil {
+		return "", err
+	}
+	content, err := base64.StdEncoding.DecodeString(wiki.ContentBase64)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode wiki content: %w", err)
+	}
+	return string(content), nil
 }
 
 // UpdateWikiOfRepo 更新仓库指定 Wiki 页面

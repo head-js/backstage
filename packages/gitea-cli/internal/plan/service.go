@@ -2,6 +2,8 @@ package plan
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -353,3 +355,126 @@ func ListPhaseOfPlan(appId, planId string) ([]Phase, error) {
 
 	return phases, nil
 }
+
+// DownloadPlan 下载 Plan 数据（含所有 Phase 及 Task）
+// appId: e.g. cms-mgr
+// planId: e.g. PLAN-102
+// 流程：
+// 1. 先调用 SyncPlanToWiki 刷新 Wiki
+// 2. 下载 Wiki/Home 到 {planId}/README.md
+// 3. 下载 {planId}/{planId}.md（Plan 最新 Comment）
+// 4. foreach Phase：{planId}/{phaseId}/{phaseId}.md
+// 5. foreach Task：{planId}/{phaseId}/{taskId}.md
+func DownloadPlan(appId, planId string) (string, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("failed to get working directory: %w", err)
+	}
+	fmt.Printf("\033[31mDownload plan to: %s\033[0m\n", pwd)
+
+
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return "", err
+	}
+
+	// 0. 先调用 SyncPlanToWiki 刷新 Wiki，保证最新
+	if _, err := SyncPlanToWiki(appId, planId); err != nil {
+		return "", fmt.Errorf("failed to sync plan to wiki: %w", err)
+	}
+
+	// 创建 {planId} 目录
+	planDir := filepath.Join(pwd, planId)
+	if err := os.MkdirAll(planDir, 0755); err != nil {
+		return "", fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	// 1. 下载 Wiki/Home 到 {planId}/README.md
+	wikiContent, err := adapter.GetWikiContent(appId, planId, "Home")
+	if err != nil {
+		return "", fmt.Errorf("failed to get wiki: %w", err)
+	}
+	readmeFile := filepath.Join(planDir, "README.md")
+	if err := os.WriteFile(readmeFile, []byte(wikiContent), 0644); err != nil {
+
+		return "", fmt.Errorf("failed to write README.md: %w", err)
+	}
+
+	// 2. 获取 Plan 的 Issue
+	issue, err := adapter.ShowIssueById(appId, planId, planId)
+	if err != nil {
+		return "", fmt.Errorf("failed to get plan issue: %w", err)
+	}
+
+	// 3. 获取 Plan Issue 的最新一条 Comment
+	issueNo := fmt.Sprintf("%d", issue.Index)
+	lastComment, err := adapter.ShowLastCommentOfIssue(appId, planId, issueNo)
+	if err != nil {
+		return "", err
+	}
+
+	// 4. 写入 {planId}/{planId}.md
+	planFile := filepath.Join(planDir, fmt.Sprintf("%s.md", planId))
+	if err := os.WriteFile(planFile, []byte(lastComment.Body), 0644); err != nil {
+		return "", fmt.Errorf("failed to write file: %w", err)
+	}
+
+	// 5. 获取所有 Phases，foreach 下载
+	phases, err := ListPhaseOfPlan(appId, planId)
+	if err != nil {
+		return "", fmt.Errorf("failed to list phases: %w", err)
+	}
+	for _, phase := range phases {
+		// 获取 Phase 的 Issue
+		phaseIssue, err := adapter.ShowIssueById(appId, planId, phase.Id)
+		if err != nil {
+			return "", fmt.Errorf("failed to get phase issue %s: %w", phase.Id, err)
+		}
+		// 获取 Phase Issue 的最新一条 Comment
+		phaseIssueNo := fmt.Sprintf("%d", phaseIssue.Index)
+		phaseComment, err := adapter.ShowLastCommentOfIssue(appId, planId, phaseIssueNo)
+		if err != nil {
+			return "", fmt.Errorf("failed to get comment of phase %s: %w", phase.Id, err)
+		}
+		// 创建 {planId}/{phaseId} 目录并写入 {planId}/{phaseId}/{phaseId}.md
+		phaseDir := filepath.Join(planDir, phase.Id)
+		if err := os.MkdirAll(phaseDir, 0755); err != nil {
+			return "", fmt.Errorf("failed to create directory: %w", err)
+		}
+		phaseFile := filepath.Join(phaseDir, fmt.Sprintf("%s.md", phase.Id))
+		if err := os.WriteFile(phaseFile, []byte(phaseComment.Body), 0644); err != nil {
+			return "", fmt.Errorf("failed to write file: %w", err)
+		}
+
+		// 6. 下载该 Phase 下的所有 Tasks
+		tasks, err := ListTaskOfPhase(appId, planId, phase.Id)
+		if err != nil {
+			return "", fmt.Errorf("failed to list tasks of phase %s: %w", phase.Id, err)
+		}
+		for _, task := range tasks {
+			// 获取 Task 的 Issue
+			taskIssue, err := adapter.ShowIssueById(appId, planId, task.Id)
+			if err != nil {
+				return "", fmt.Errorf("failed to get task issue %s: %w", task.Id, err)
+			}
+			// 获取 Task Issue 的最新一条 Comment
+			taskIssueNo := fmt.Sprintf("%d", taskIssue.Index)
+			taskComment, err := adapter.ShowLastCommentOfIssue(appId, planId, taskIssueNo)
+			if err != nil {
+				return "", fmt.Errorf("failed to get comment of task %s: %w", task.Id, err)
+			}
+			// 写入 {planId}/{phaseId}/{taskId}.md
+			taskFile := filepath.Join(phaseDir, fmt.Sprintf("%s.md", task.Id))
+			if err := os.WriteFile(taskFile, []byte(taskComment.Body), 0644); err != nil {
+				return "", fmt.Errorf("failed to write file: %w", err)
+			}
+		}
+	}
+
+	return fmt.Sprintf("Downloaded to: %s", planDir), nil
+}
+
+
+
+
+

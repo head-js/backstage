@@ -58,6 +58,21 @@ func (a *Adapter) ShowIssueByPrefixId(owner, repoName, prefixId string) (*gitea.
 	return issues[0], nil
 }
 
+// ShowLastCommentOfIssue 获取 Issue 的最新一条 Comment
+func (a *Adapter) ShowLastCommentOfIssue(owner, repoName, issueNo string) (*gitea.Comment, error) {
+	comments, err := a.ListCommentOfIssue(owner, repoName, issueNo)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(comments) == 0 {
+		return nil, framework.NotFoundException("no comments found for issue: " + issueNo)
+	}
+
+	// 取最后一条（最新）
+	return comments[len(comments)-1], nil
+}
+
 // SearchIssueByPrefix 根据 Issue Title 前缀搜索指定仓库的所有 Issues
 func (a *Adapter) SearchIssueByPrefix(owner, repoName, prefix string) ([]*gitea.Issue, error) {
 	issues, err := a.ListIssueOfRepo(owner, repoName)
