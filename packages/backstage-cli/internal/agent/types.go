@@ -181,6 +181,12 @@ type EnvBlockLayers struct {
 	// Shell 组（专用 struct，用 printBlockByReflect 打印）
 	Shell EnvShellBlock // PSModulePath
 
+	// KiloCode 组（专用 struct，用 printBlockByReflect 打印）
+	KiloCode EnvKiloCodeBlock
+
+	// Flutter 组（专用 struct，用 printBlockByReflect 打印）
+	Flutter EnvFlutterBlock
+
 	// 11 个 map family，按特异性从窄到宽排列（和匹配优先级一致）
 	ExtensionHost map[string]string // VSCODE_CRASH_REPORTER_PROCESS_TYPE / VSCODE_PID / VSCODE_IPC_HOOK / VSCODE_ESM_ENTRYPOINT / VSCODE_NLS_CONFIG
 	IDE           map[string]string // 前缀：VSCODE_ / WINDSURF_ / CURSOR_ / CASCADE_ / JETBRAINS_ / IDEA_ / PYCHARM_
@@ -213,5 +219,34 @@ type EnvPlatformBlock struct {
 
 // EnvShellBlock Shell 组的专用输出结构，用 printBlockByReflect 打印。
 type EnvShellBlock struct {
-	PSModulePath string `loglevel:"debug"` // Windows PowerShell
+	SHELL            string `loglevel:"debug"`
+	MSYS_NO_PATHCONV string `loglevel:"debug"`
+	PSModulePath     string `loglevel:"debug"` // Windows PowerShell
+}
+
+// EnvKiloCodeBlock KiloCode 组的专用输出结构，用 printBlockByReflect 打印。
+type EnvKiloCodeBlock struct {
+	KILO_PLATFORM             string `loglevel:"debug"`
+	KILO_APP_NAME             string `loglevel:"debug"`
+	KILO_APP_VERSION          string `loglevel:"debug"`
+	KILO_DISABLE_AUTOUPDATE   string `loglevel:"debug"`
+	KILO_DISABLE_CLAUDE_CODE  string `loglevel:"debug"`
+	KILO_ENABLE_QUESTION_TOOL string `loglevel:"debug"`
+
+	KILO_EDITOR_NAME     string `loglevel:"debug"`
+	KILOCODE_EDITOR_NAME string `loglevel:"debug"`
+	KILOCODE_VERSION     string `loglevel:"debug"`
+	KILOCODE_FEATURE     string `loglevel:"debug"`
+	KILO_CLIENT          string `loglevel:"debug"`
+	KILO_VSCODE_VERSION  string `loglevel:"debug"`
+	KILO_TELEMETRY_LEVEL string `loglevel:"debug"`
+
+	KILO_MACHINE_ID      string `loglevel:"dangerous"`
+	KILO_PID             string `loglevel:"dangerous"`
+	KILO_SERVER_PASSWORD string `loglevel:"dangerous"`
+}
+
+type EnvFlutterBlock struct {
+	PUB_HOSTED_URL           string `loglevel:"debug"`
+	FLUTTER_STORAGE_BASE_URL string `loglevel:"debug"`
 }

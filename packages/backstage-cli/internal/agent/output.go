@@ -68,25 +68,53 @@ func normalizeChainExe(layers []ChainBlock) []string {
 	return aliased
 }
 
-// knownExeAliases 将链路上各可执行 basename 归一到 canonical 身份名。
-// key = "/" + filepath.Base(exePath)，前置 "/" 显式标注"路径末段边界"，
-// 避免 basename 与中间目录同名时的视觉歧义；保留原始大小写与空格
-// （如 "/Windsurf Helper"）。value = canonical identity；空串 = 显式抑制，
-// 该层不入链路归一输出。未命中时调用方保留原完整路径。
+// knownExeAliases 将链路上各可执行路径归一到 canonical 身份名。
+// key 为路径片段（macOS 用 "/" 前缀、Windows 用 "\" 前缀），通过子串
+// 包含匹配（strings.Contains）命中绝对路径；保留原始大小写与空格
+// （如 "/Windsurf Helper"）。key 可以是纯 basename（如 "/Windsurf"）或
+// 含目录片段（如 "\nodejs\node.exe"），视区分精度需要而定。匹配顺序由
+// exeAliasRules 保证长 key 优先，避免泛化 key 遮蔽更具体的变体。
+// value = canonical identity；空串 = 显式抑制，该层不入链路归一输出。
+// 未命中时调用方保留原完整路径。
 //
 // 新增条目时请成对补齐同家族的常见变体（无后缀 / " Helper" / ".exe" 等），
 // 避免同一工具因平台差异 / 子进程形态造成链路输出中的身份分裂。
 var knownExeAliases = map[string]string{
+	// macOS
 	"/Windsurf":        "Windsurf",
 	"/Windsurf Helper": "Windsurf",
-	"/Windsurf.exe":    "Windsurf",
 
-	"/iTerm2":        "iTerm2",
-	"/iTerm2.exe":    "iTerm2",
-	"/iTermServer-":  "iTerm2", // 捕获 "/.../iTermServer-3.4.19" 等版本变体（子串匹配）
+	"/iTerm2":       "iTerm2",
+	"/iTermServer-": "iTerm2", // 捕获 "/.../iTermServer-3.4.19" 等版本变体（子串匹配）
 
-	// launchd 是 macOS 系统 PID 1，所有用户态进程的终极祖先，无身份区分价值。
-	"/launchd": "",
+	"/launchd": "", // macOS 系统 PID 1，所有用户态进程的终极祖先，无身份区分价值
+
+	// Windows
+	`\Microsoft VS Code\Code.exe`: "VSCode",
+	`\Windsurf.exe`:               "Windsurf",
+
+	`\Android Studio\bin`: "AndroidStudio",
+
+	`\PyCharm\bin\pycharm64.exe`: "PyCharm",
+
+	`\Git\usr\bin\bash.exe`: "GitBash",
+	`\Git\bin\bash.exe`:     "GitBash",
+
+	`\powershell.exe`:                     "PowerShell",
+	`\WindowsApps\Microsoft.PowerShell_7`: "PowserShell7",
+	`\WindowsTerminal.exe`:                "WindowsTerminal",
+	`\System32\cmd.exe`:                   "WindowsCmd",
+
+	`\.vscode\extensions\kilocode`: "KiloCode-vsix",
+	`\plugins\cline\core`:          "Cline-jbp",
+
+	`\python.exe`:               "Python",
+	`\.venv\Scripts\python.exe`: "Python-venv",
+
+	`\nodejs\node.exe`:                        "Node",
+	`\@kilocode\cli-windows-x64\bin\kilo.exe`: "Kilo-bin",
+
+	`\explorer.exe`: "", // Windows 资源管理器，无身份区分价值
 }
 
 // exeAliasRule 是 knownExeAliases 展平后的一条匹配规则。
