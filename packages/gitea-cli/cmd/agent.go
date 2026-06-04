@@ -131,6 +131,16 @@ func init() {
 		return internalAgent.UpdatePhase(params["appId"], params["planId"], params["phaseId"], args["status"], args["context"])
 	})
 
+	agentRouter.Verb("POST", "/:appId/:planId/blames", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["title"] == "" {
+			return nil, fmt.Errorf("POST /:appId/:planId/blames requires --title flag")
+		}
+		if args["context"] == "" {
+			return nil, fmt.Errorf("POST /:appId/:planId/blames requires --context flag")
+		}
+		return internalAgent.CreateBlame(params["appId"], params["planId"], args["title"], args["context"])
+	})
+
 	// Plan
 	agentRouter.Verb("HEAD", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return internalAgent.HeadPlan(params["appId"], params["planId"])
