@@ -41,3 +41,7 @@ func ExtractPhaseId(milestoneTitle string) (string, string, string, error) {
 func ExtractTaskId(issueTitle string) (string, string, string, error) {
 	return ExtractTicketId("TASK", issueTitle)
 }
+
+func ExtractBlameId(issueTitle string) (string, string, string, error) {
+	return ExtractTicketId("BLAME", issueTitle)
+}

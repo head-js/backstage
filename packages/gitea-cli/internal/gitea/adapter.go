@@ -61,7 +61,7 @@ func (a *Adapter) ListIssueOfRepo(owner, repoName string) ([]*gitea.Issue, error
 	return issues, err
 }
 
-func (a *Adapter) SearchRepoIssues(owner, repoName string, searchOptions gitea.ListIssueOption) ([]*gitea.Issue, error) {
+func (a *Adapter) SearchIssueOfRepo(owner, repoName string, searchOptions gitea.ListIssueOption) ([]*gitea.Issue, error) {
 	if searchOptions.KeyWord != "" {
 		return nil, framework.InvalidFormatException("keyword search is not reliable")
 	}

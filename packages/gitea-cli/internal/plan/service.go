@@ -275,7 +275,7 @@ func ListTaskOfPhase(appId, planId, phaseId string) ([]Task, error) {
 		return nil, err
 	}
 
-	issues, err := adapter.SearchRepoIssues(appId, planId, gitea.ListIssueOption{
+	issues, err := adapter.SearchIssueOfRepo(appId, planId, gitea.ListIssueOption{
 		Milestones: []string{milestoneId},
 	})
 	if err != nil {

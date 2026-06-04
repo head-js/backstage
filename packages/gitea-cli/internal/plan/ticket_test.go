@@ -59,3 +59,23 @@ func TestExtractTaskId(t *testing.T) {
 		})
 	}
 }
+
+func TestExtractTicketId(t *testing.T) {
+	gotId, gotName, gotNumId, err := ExtractTicketId("BLAME", "BLAME-001: 问题")
+	if err != nil {
+		t.Fatalf("ExtractTicketId() error = %v", err)
+	}
+	if gotId != "BLAME-001" || gotName != "问题" || gotNumId != "001" {
+		t.Fatalf("ExtractTicketId() = (%q, %q, %q), want (BLAME-001, 问题, 001)", gotId, gotName, gotNumId)
+	}
+}
+
+func TestExtractPlanId(t *testing.T) {
+	gotId, gotName, gotNumId, err := ExtractPlanId("PLAN-102: My Plan")
+	if err != nil {
+		t.Fatalf("ExtractPlanId() error = %v", err)
+	}
+	if gotId != "PLAN-102" || gotName != "My Plan" || gotNumId != "102" {
+		t.Fatalf("ExtractPlanId() = (%q, %q, %q), want (PLAN-102, My Plan, 102)", gotId, gotName, gotNumId)
+	}
+}
