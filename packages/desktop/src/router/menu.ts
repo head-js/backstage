@@ -14,6 +14,7 @@ export const menuGroups: MenuGroup[] = [
     items: [
       { label: "Dashboard", path: "/dashboard" },
       { label: "Agenda", path: "/agenda" },
+      { label: "Blames", path: "/blames" },
     ],
   },
   {
