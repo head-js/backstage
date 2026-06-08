@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import { About } from "../pages/About";
 import { Agenda } from "../pages/Agenda";
+import { Blames } from "../pages/Blames";
 import { CommandRunner } from "../pages/CommandRunner";
 import { Dashboard } from "../pages/Dashboard";
 import { NotFound } from "../pages/NotFound";
@@ -14,6 +15,7 @@ export function AppRoutes() {
       <Route index element={<Navigate to="/dashboard" replace />} />
       <Route path="/dashboard" element={<Dashboard />} />
       <Route path="/agenda" element={<Agenda />} />
+      <Route path="/blames" element={<Blames />} />   
       <Route path="/system/info" element={<SystemInfo />} />
       <Route path="/system/command" element={<CommandRunner />} />
       <Route path="/system/scheduler" element={<Scheduler />} />

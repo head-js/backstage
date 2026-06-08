@@ -9,3 +9,11 @@ export function getSystemInfo() {
 export function runAiHasshin() {
   return invoke<CommandResult>("run_command");
 }
+
+export function listBlames() {
+  return invoke("tauri_edge", {
+    method: "GET",
+    pathname: "/blames",
+    query: {},
+  });
+}

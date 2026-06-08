@@ -1,5 +1,39 @@
-use serde::Serialize;
+use crate::cli::parse_cli_output;
+use serde::{Deserialize, Serialize};
 use std::time::Duration;
+
+#[derive(Debug, PartialEq, Eq)]
+enum EdgeAction {
+    ListBlames,
+}
+
+#[derive(Deserialize)]
+struct GiteaBlame {
+    id: String,
+    name: String,
+    gitea: GiteaBlameGiteaExtra,
+}
+
+#[derive(Default, Deserialize)]
+struct GiteaBlameGiteaExtra {
+    owner: Option<String>,
+    repo: Option<String>,
+    body: Option<String>,
+    #[serde(rename(deserialize = "updatedAt"))]
+    updated_at: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all(serialize = "camelCase"))]
+struct EdgeBlame {
+    id: String,
+    blame_id: String,
+    name: String,
+    app_id: String,
+    plan_id: String,
+    context: String,
+    updated_at: String,
+}
 
 #[derive(Serialize)]
 pub struct SystemInfo {
@@ -109,3 +143,97 @@ pub async fn run_command() -> CommandResult {
         },
     }
 }
+
+#[tauri::command]
+pub async fn tauri_edge(
+    method: String,
+    pathname: String,
+    query: serde_json::Value,
+) -> Result<serde_json::Value, String> {
+    let _query = query;
+    let action = route_edge_action(&method, &pathname)?;
+    run_edge_action(action).await
+}
+
+fn route_edge_action(method: &str, pathname: &str) -> Result<EdgeAction, String> {
+    let normalized_method = method.to_uppercase();
+
+    match (normalized_method.as_str(), pathname) {
+        ("GET", "/blames") => Ok(EdgeAction::ListBlames),
+        _ => Err(format!(
+            "unsupported edge route: {} {}",
+            normalized_method, pathname
+        )),
+    }
+}
+
+async fn run_edge_action(action: EdgeAction) -> Result<serde_json::Value, String> {
+    match action {
+        EdgeAction::ListBlames => run_list_blames().await,
+    }
+}
+
+async fn run_list_blames() -> Result<serde_json::Value, String> {
+    let result = tokio::time::timeout(Duration::from_secs(30), async {
+        tokio::process::Command::new("backstage-gitea")
+            .args(["plan", "GET", "/blames"])
+            .output()
+            .await
+    })
+    .await;
+
+    match result {
+        Ok(Ok(output)) => {
+            let stdout = String::from_utf8_lossy(&output.stdout).into_owned();
+            let stderr = String::from_utf8_lossy(&output.stderr).into_owned();
+            transform_list_blames_output(&stdout, &stderr, output.status.code())
+        }
+        Ok(Err(e)) => {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                Err(format!("backstage-gitea not found: {}", e))
+            } else {
+                Err(format!("failed to run backstage-gitea: {}", e))
+            }
+        }
+        Err(_) => Err("backstage-gitea plan GET /blames timed out after 30 seconds".to_string()),
+    }
+}
+
+fn transform_list_blames_output(
+    stdout: &str,
+    stderr: &str,
+    exit_code: Option<i32>,
+) -> Result<serde_json::Value, String> {
+    let blames: Vec<GiteaBlame> = parse_cli_output(stdout, stderr, exit_code)?;
+    let edge_blames: Vec<EdgeBlame> = blames.into_iter().map(map_gitea_blame).collect();
+
+    serde_json::to_value(edge_blames).map_err(|e| format!("failed to serialize edge blames: {}", e))
+}
+
+fn map_gitea_blame(blame: GiteaBlame) -> EdgeBlame {
+    let gitea = blame.gitea;
+    let blame_id = blame.id;
+    let app_id = gitea.owner.unwrap_or_default();
+    let plan_id = gitea.repo.unwrap_or_default();
+
+    EdgeBlame {
+        id: format!("{}-{}-{}", app_id, plan_id, blame_id),
+        blame_id,
+        name: blame.name,
+        app_id,
+        plan_id,
+        context: gitea.body.unwrap_or_default(),
+        updated_at: format_updated_at(gitea.updated_at.as_deref().unwrap_or_default()),
+    }
+}
+
+fn format_updated_at(updated_at: &str) -> String {
+    match (updated_at.get(5..10), updated_at.get(11..19)) {
+        (Some(date), Some(time)) => format!("{} {}", date, time),
+        _ => updated_at.to_string(),
+    }
+}
+
+#[cfg(test)]
+#[path = "commands_tests.rs"]
+mod tests;

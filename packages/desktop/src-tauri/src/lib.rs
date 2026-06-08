@@ -1,3 +1,4 @@
+mod cli;
 mod commands;
 mod layout;
 mod scheduler;
@@ -15,8 +16,8 @@ use tauri::{
 use windows::{
     Win32::Foundation::{COLORREF, HWND},
     Win32::UI::WindowsAndMessaging::{
-        GetWindowLongPtrW, SetLayeredWindowAttributes, SetWindowLongPtrW, GWL_EXSTYLE,
-        LWA_ALPHA, WS_EX_LAYERED,
+        GetWindowLongPtrW, SetLayeredWindowAttributes, SetWindowLongPtrW, GWL_EXSTYLE, LWA_ALPHA,
+        WS_EX_LAYERED,
     },
 };
 
@@ -24,7 +25,9 @@ use windows::{
 fn set_window_opacity(hwnd: HWND, opacity: u8) {
     let ex_style = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) };
     unsafe { SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED.0 as isize) };
-    unsafe { let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), opacity, LWA_ALPHA); };
+    unsafe {
+        let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), opacity, LWA_ALPHA);
+    };
 }
 
 #[cfg(target_os = "macos")]
@@ -62,7 +65,11 @@ pub fn run() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_os::init())
         .plugin(tauri_plugin_store::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![commands::get_system_info, commands::run_command])
+        .invoke_handler(tauri::generate_handler![
+            commands::get_system_info,
+            commands::run_command,
+            commands::tauri_edge
+        ])
         .setup(|app| {
             tracing_subscriber::fmt()
                 .with_env_filter(
