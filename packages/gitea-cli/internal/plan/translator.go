@@ -12,6 +12,7 @@
 //	TranslateIssueList2Phase(issues)                 Issue 列表 → Phase 列表
 //	TranslateIssueList2TaskList(issues)             Issue 列表 → Task 列表
 //	TranslateIssue2Task(issue)                       单个 Issue → Task
+//	TranslateIssue2Blame(issue)                      单个 Issue → Blame
 package plan
 
 import (
@@ -282,6 +283,46 @@ func (pt *PlanTranslator) TranslateIssue2Task(issue *gitea.Issue) Task {
 			Body:      issue.Body,
 			State:     string(issue.State),
 			Labels:    labelNames,
+			CreatedAt: issue.Created.Format(time.RFC3339),
+			UpdatedAt: updatedAt,
+		},
+	}
+}
+
+// TranslateIssue2Blame 将单个 Gitea Issue 转换为 Blame
+func (pt *PlanTranslator) TranslateIssue2Blame(issue *gitea.Issue) Blame {
+	blameId, blameName, _, err := ExtractBlameId(issue.Title)
+	if err != nil {
+		fmt.Printf("Warning: invalid blame naming for issue %s: %v\n", issue.Title, err)
+		blameId = fmt.Sprintf("BLAME-%d", issue.Index)
+		blameName = issue.Title
+	}
+
+	updatedAt := ""
+	if !issue.Updated.IsZero() {
+		updatedAt = issue.Updated.Format(time.RFC3339)
+	}
+
+	owner := ""
+	repoName := ""
+	if issue.Repository != nil {
+		owner = issue.Repository.Owner
+		repoName = issue.Repository.Name
+	}
+
+	return Blame{
+		Id:    blameId,
+		Name:  blameName,
+		Title: issue.Title,
+		Gitea: GiteaExtra{
+			Type:      "ISSUE",
+			Id:        issue.ID,
+			No:        issue.Index,
+			Owner:     owner,
+			Repo:      repoName,
+			Title:     issue.Title,
+			Body:      issue.Body,
+			State:     string(issue.State),
 			CreatedAt: issue.Created.Format(time.RFC3339),
 			UpdatedAt: updatedAt,
 		},

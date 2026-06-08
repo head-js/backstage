@@ -9,9 +9,9 @@ import (
 
 // GiteaExtra Gitea 对象的附加信息（Repo / Milestone 通用）
 type GiteaExtra struct {
-	Type        string   `json:"type"`  // "REPO" | "MILESTONE" | "ISSUE"
-	Id          int64    `json:"id"`    // Gitea 对象 ID
-	No          int64    `json:"no"`    // Issue Number
+	Type        string   `json:"type"` // "REPO" | "MILESTONE" | "ISSUE"
+	Id          int64    `json:"id"`   // Gitea 对象 ID
+	No          int64    `json:"no"`   // Issue Number
 	Owner       string   `json:"owner"` // Repo Owner（appId）
 	Repo        string   `json:"repo"`  // Repo Name
 	Title       string   `json:"title"`
@@ -50,6 +50,14 @@ type Task struct {
 	Status  string     `json:"status"` // 状态：TODO / SUCCESS / FAIL / UNKNOWN
 	Context string     `json:"context"`
 	Gitea   GiteaExtra `json:"gitea"`
+}
+
+// Blame 责任记录（对应 Gitea Issue，BLAME-* 前缀）
+type Blame struct {
+	Id    string     `json:"id"`
+	Name  string     `json:"name"`
+	Title string     `json:"title"`
+	Gitea GiteaExtra `json:"gitea"`
 }
 
 // Status 任务状态枚举

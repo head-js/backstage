@@ -370,6 +370,58 @@ func ListPlanOfApp(appId string) ([]Plan, error) {
 	return plans, nil
 }
 
+// ListBlameOfPlan 获取指定 Plan 下的所有 Blames（BLAME-* 前缀 Issues）
+func ListBlameOfPlan(appId, planId string) ([]Blame, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	issues, err := adapter.SearchIssueByPrefix(appId, planId, "BLAME-")
+	if err != nil {
+		return nil, fmt.Errorf("failed to search blames: %w", err)
+	}
+
+	translator := NewPlanTranslator()
+	blames := []Blame{}
+	for _, issue := range issues {
+		if issue == nil {
+			continue
+		}
+		blame := translator.TranslateIssue2Blame(issue)
+		blames = append(blames, blame)
+	}
+
+	return blames, nil
+}
+
+// ListAllBlames 遍历所有 Plans 并聚合每个 Plan 下的 Blames
+func ListAllBlames() ([]Blame, error) {
+	plans, err := ListAllPlans()
+	if err != nil {
+		return nil, err
+	}
+
+	all := []Blame{}
+	for _, p := range plans {
+		blames, err := ListBlameOfPlan(p.Gitea.Owner, p.Gitea.Repo)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list blames of plan %s: %w", p.Id, err)
+		}
+		all = append(all, blames...)
+	}
+
+	slices.SortFunc(all, func(a, b Blame) int {
+		return cmp.Or(
+			cmp.Compare(a.Gitea.Owner, b.Gitea.Owner),
+			cmp.Compare(a.Gitea.Repo, b.Gitea.Repo),
+			cmp.Compare(b.Id, a.Id), // blameId 倒序
+		)
+	})
+
+	return all, nil
+}
+
 // ListPhaseOfPlan 获取指定 Plan 下的所有 Phases
 func ListPhaseOfPlan(appId, planId string) ([]Phase, error) {
 	adapter, err := internalGitea.NewAdapter()
