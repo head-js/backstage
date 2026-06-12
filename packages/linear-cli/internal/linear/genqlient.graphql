@@ -1,0 +1,71 @@
+query GetViewer {
+  viewer {
+    id
+    name
+    email
+  }
+}
+
+query ListTeam {
+  teams {
+    nodes {
+      id
+      name
+      key
+      description
+    }
+  }
+}
+
+query ListProjectOfTeam($teamKey: String!) {
+  team(id: $teamKey) {
+    projects {
+      nodes {
+        id
+        name
+        state
+        description
+      }
+    }
+  }
+}
+
+query ListIssueOfProject($teamKey: String!, $projectName: String!) {
+  issues(
+    filter: {
+      team: { key: { eq: $teamKey } }
+      project: { name: { eq: $projectName } }
+    }
+  ) {
+    nodes {
+      id
+      identifier
+      title
+      priority
+      state {
+        name
+      }
+      url
+    }
+  }
+}
+
+query GetIssue($issueId: String!) {
+  issue(id: $issueId) {
+    id
+    identifier
+    title
+    description
+    priority
+    state {
+      name
+    }
+    url
+    team {
+      key
+    }
+    project {
+      name
+    }
+  }
+}
