@@ -8,6 +8,68 @@ import (
 	"github.com/Khan/genqlient/graphql"
 )
 
+// CreateIssueIssueCreateIssuePayload includes the requested fields of the GraphQL type IssuePayload.
+// The GraphQL type's documentation follows.
+//
+// The result of an issue mutation, containing the created or updated issue and a success indicator.
+type CreateIssueIssueCreateIssuePayload struct {
+	// Whether the operation was successful.
+	Success bool `json:"success"`
+	// The issue that was created or updated.
+	Issue *CreateIssueIssueCreateIssuePayloadIssue `json:"issue"`
+}
+
+// GetSuccess returns CreateIssueIssueCreateIssuePayload.Success, and is useful for accessing the field via an interface.
+func (v *CreateIssueIssueCreateIssuePayload) GetSuccess() bool { return v.Success }
+
+// GetIssue returns CreateIssueIssueCreateIssuePayload.Issue, and is useful for accessing the field via an interface.
+func (v *CreateIssueIssueCreateIssuePayload) GetIssue() *CreateIssueIssueCreateIssuePayloadIssue {
+	return v.Issue
+}
+
+// CreateIssueIssueCreateIssuePayloadIssue includes the requested fields of the GraphQL type Issue.
+// The GraphQL type's documentation follows.
+//
+// An issue is the core work item in Linear. Issues belong to a team, have a
+// workflow status, can be assigned to users, carry a priority level, and can be
+// organized into projects and cycles. Issues support sub-issues (parent-child
+// hierarchy up to 10 levels deep), labels, due dates, estimates, and SLA tracking.
+// They can also be linked to other issues via relations, attached to releases, and
+// tracked through their full history of changes.
+type CreateIssueIssueCreateIssuePayloadIssue struct {
+	// The unique identifier of the entity.
+	Id string `json:"id"`
+	// Issue's human readable identifier (e.g. ENG-123).
+	Identifier string `json:"identifier"`
+	// The issue's title. This is the primary human-readable summary of the work item.
+	Title string `json:"title"`
+	// Issue URL.
+	Url string `json:"url"`
+}
+
+// GetId returns CreateIssueIssueCreateIssuePayloadIssue.Id, and is useful for accessing the field via an interface.
+func (v *CreateIssueIssueCreateIssuePayloadIssue) GetId() string { return v.Id }
+
+// GetIdentifier returns CreateIssueIssueCreateIssuePayloadIssue.Identifier, and is useful for accessing the field via an interface.
+func (v *CreateIssueIssueCreateIssuePayloadIssue) GetIdentifier() string { return v.Identifier }
+
+// GetTitle returns CreateIssueIssueCreateIssuePayloadIssue.Title, and is useful for accessing the field via an interface.
+func (v *CreateIssueIssueCreateIssuePayloadIssue) GetTitle() string { return v.Title }
+
+// GetUrl returns CreateIssueIssueCreateIssuePayloadIssue.Url, and is useful for accessing the field via an interface.
+func (v *CreateIssueIssueCreateIssuePayloadIssue) GetUrl() string { return v.Url }
+
+// CreateIssueResponse is returned by CreateIssue on success.
+type CreateIssueResponse struct {
+	// Creates a new issue.
+	IssueCreate *CreateIssueIssueCreateIssuePayload `json:"issueCreate"`
+}
+
+// GetIssueCreate returns CreateIssueResponse.IssueCreate, and is useful for accessing the field via an interface.
+func (v *CreateIssueResponse) GetIssueCreate() *CreateIssueIssueCreateIssuePayload {
+	return v.IssueCreate
+}
+
 // GetIssueIssue includes the requested fields of the GraphQL type Issue.
 // The GraphQL type's documentation follows.
 //
@@ -374,6 +436,107 @@ func (v *ListTeamTeamsTeamConnectionNodesTeam) GetKey() string { return v.Key }
 // GetDescription returns ListTeamTeamsTeamConnectionNodesTeam.Description, and is useful for accessing the field via an interface.
 func (v *ListTeamTeamsTeamConnectionNodesTeam) GetDescription() string { return v.Description }
 
+// ShowProjectResponse is returned by ShowProject on success.
+type ShowProjectResponse struct {
+	// Fetches a specific team by its ID.
+	Team *ShowProjectTeam `json:"team"`
+}
+
+// GetTeam returns ShowProjectResponse.Team, and is useful for accessing the field via an interface.
+func (v *ShowProjectResponse) GetTeam() *ShowProjectTeam { return v.Team }
+
+// ShowProjectTeam includes the requested fields of the GraphQL type Team.
+// The GraphQL type's documentation follows.
+//
+// A team is the primary organizational unit in Linear. Issues belong to teams, and
+// each team has its own workflow states, cycles, labels, and settings. Teams can
+// be public (visible to all workspace members), private (visible only to team
+// members), or restricted (visible only within an enclosing private-team
+// boundary). Teams can also have sub-teams that inherit settings from their parent.
+type ShowProjectTeam struct {
+	// The unique identifier of the entity.
+	Id string `json:"id"`
+	// The team's unique key, used as a prefix in issue identifiers (e.g., 'ENG' in 'ENG-123') and in URLs.
+	Key string `json:"key"`
+	// The team's name.
+	Name string `json:"name"`
+	// Projects associated with the team.
+	Projects *ShowProjectTeamProjectsProjectConnection `json:"projects"`
+}
+
+// GetId returns ShowProjectTeam.Id, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeam) GetId() string { return v.Id }
+
+// GetKey returns ShowProjectTeam.Key, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeam) GetKey() string { return v.Key }
+
+// GetName returns ShowProjectTeam.Name, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeam) GetName() string { return v.Name }
+
+// GetProjects returns ShowProjectTeam.Projects, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeam) GetProjects() *ShowProjectTeamProjectsProjectConnection { return v.Projects }
+
+// ShowProjectTeamProjectsProjectConnection includes the requested fields of the GraphQL type ProjectConnection.
+type ShowProjectTeamProjectsProjectConnection struct {
+	Nodes []*ShowProjectTeamProjectsProjectConnectionNodesProject `json:"nodes"`
+}
+
+// GetNodes returns ShowProjectTeamProjectsProjectConnection.Nodes, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeamProjectsProjectConnection) GetNodes() []*ShowProjectTeamProjectsProjectConnectionNodesProject {
+	return v.Nodes
+}
+
+// ShowProjectTeamProjectsProjectConnectionNodesProject includes the requested fields of the GraphQL type Project.
+// The GraphQL type's documentation follows.
+//
+// A project is a collection of issues working toward a shared goal. Projects have
+// start and target dates, milestones, status tracking, and progress metrics. They
+// can span multiple teams and be grouped under initiatives.
+type ShowProjectTeamProjectsProjectConnectionNodesProject struct {
+	// The unique identifier of the entity.
+	Id string `json:"id"`
+	// The name of the project.
+	Name string `json:"name"`
+	// [DEPRECATED] The type of the state.
+	State string `json:"state"`
+	// The short description of the project.
+	Description string `json:"description"`
+}
+
+// GetId returns ShowProjectTeamProjectsProjectConnectionNodesProject.Id, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeamProjectsProjectConnectionNodesProject) GetId() string { return v.Id }
+
+// GetName returns ShowProjectTeamProjectsProjectConnectionNodesProject.Name, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeamProjectsProjectConnectionNodesProject) GetName() string { return v.Name }
+
+// GetState returns ShowProjectTeamProjectsProjectConnectionNodesProject.State, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeamProjectsProjectConnectionNodesProject) GetState() string { return v.State }
+
+// GetDescription returns ShowProjectTeamProjectsProjectConnectionNodesProject.Description, and is useful for accessing the field via an interface.
+func (v *ShowProjectTeamProjectsProjectConnectionNodesProject) GetDescription() string {
+	return v.Description
+}
+
+// __CreateIssueInput is used internally by genqlient
+type __CreateIssueInput struct {
+	TeamId      string `json:"teamId"`
+	ProjectId   string `json:"projectId"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+}
+
+// GetTeamId returns __CreateIssueInput.TeamId, and is useful for accessing the field via an interface.
+func (v *__CreateIssueInput) GetTeamId() string { return v.TeamId }
+
+// GetProjectId returns __CreateIssueInput.ProjectId, and is useful for accessing the field via an interface.
+func (v *__CreateIssueInput) GetProjectId() string { return v.ProjectId }
+
+// GetTitle returns __CreateIssueInput.Title, and is useful for accessing the field via an interface.
+func (v *__CreateIssueInput) GetTitle() string { return v.Title }
+
+// GetDescription returns __CreateIssueInput.Description, and is useful for accessing the field via an interface.
+func (v *__CreateIssueInput) GetDescription() string { return v.Description }
+
 // __GetIssueInput is used internally by genqlient
 type __GetIssueInput struct {
 	IssueId string `json:"issueId"`
@@ -401,6 +564,64 @@ type __ListProjectOfTeamInput struct {
 
 // GetTeamKey returns __ListProjectOfTeamInput.TeamKey, and is useful for accessing the field via an interface.
 func (v *__ListProjectOfTeamInput) GetTeamKey() string { return v.TeamKey }
+
+// __ShowProjectInput is used internally by genqlient
+type __ShowProjectInput struct {
+	TeamKey     string `json:"teamKey"`
+	ProjectName string `json:"projectName"`
+}
+
+// GetTeamKey returns __ShowProjectInput.TeamKey, and is useful for accessing the field via an interface.
+func (v *__ShowProjectInput) GetTeamKey() string { return v.TeamKey }
+
+// GetProjectName returns __ShowProjectInput.ProjectName, and is useful for accessing the field via an interface.
+func (v *__ShowProjectInput) GetProjectName() string { return v.ProjectName }
+
+// The mutation executed by CreateIssue.
+const CreateIssue_Operation = `
+mutation CreateIssue ($teamId: String!, $projectId: String!, $title: String!, $description: String!) {
+	issueCreate(input: {teamId:$teamId,projectId:$projectId,title:$title,description:$description}) {
+		success
+		issue {
+			id
+			identifier
+			title
+			url
+		}
+	}
+}
+`
+
+func CreateIssue(
+	ctx_ context.Context,
+	client_ graphql.Client,
+	teamId string,
+	projectId string,
+	title string,
+	description string,
+) (data_ *CreateIssueResponse, err_ error) {
+	req_ := &graphql.Request{
+		OpName: "CreateIssue",
+		Query:  CreateIssue_Operation,
+		Variables: &__CreateIssueInput{
+			TeamId:      teamId,
+			ProjectId:   projectId,
+			Title:       title,
+			Description: description,
+		},
+	}
+
+	data_ = &CreateIssueResponse{}
+	resp_ := &graphql.Response{Data: data_}
+
+	err_ = client_.MakeRequest(
+		ctx_,
+		req_,
+		resp_,
+	)
+
+	return data_, err_
+}
 
 // The query executed by GetIssue.
 const GetIssue_Operation = `
@@ -592,6 +813,52 @@ func ListTeam(
 	}
 
 	data_ = &ListTeamResponse{}
+	resp_ := &graphql.Response{Data: data_}
+
+	err_ = client_.MakeRequest(
+		ctx_,
+		req_,
+		resp_,
+	)
+
+	return data_, err_
+}
+
+// The query executed by ShowProject.
+const ShowProject_Operation = `
+query ShowProject ($teamKey: String!, $projectName: String!) {
+	team(id: $teamKey) {
+		id
+		key
+		name
+		projects(filter: {name:{eq:$projectName}}) {
+			nodes {
+				id
+				name
+				state
+				description
+			}
+		}
+	}
+}
+`
+
+func ShowProject(
+	ctx_ context.Context,
+	client_ graphql.Client,
+	teamKey string,
+	projectName string,
+) (data_ *ShowProjectResponse, err_ error) {
+	req_ := &graphql.Request{
+		OpName: "ShowProject",
+		Query:  ShowProject_Operation,
+		Variables: &__ShowProjectInput{
+			TeamKey:     teamKey,
+			ProjectName: projectName,
+		},
+	}
+
+	data_ = &ShowProjectResponse{}
 	resp_ := &graphql.Response{Data: data_}
 
 	err_ = client_.MakeRequest(

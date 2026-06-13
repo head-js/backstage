@@ -30,6 +30,22 @@ query ListProjectOfTeam($teamKey: String!) {
   }
 }
 
+query ShowProject($teamKey: String!, $projectName: String!) {
+  team(id: $teamKey) {
+    id
+    key
+    name
+    projects(filter: { name: { eq: $projectName } }) {
+      nodes {
+        id
+        name
+        state
+        description
+      }
+    }
+  }
+}
+
 query ListIssueOfProject($teamKey: String!, $projectName: String!) {
   issues(
     filter: {
@@ -66,6 +82,30 @@ query GetIssue($issueId: String!) {
     }
     project {
       name
+    }
+  }
+}
+
+mutation CreateIssue(
+  $teamId: String!
+  $projectId: String!
+  $title: String!
+  $description: String!
+) {
+  issueCreate(
+    input: {
+      teamId: $teamId
+      projectId: $projectId
+      title: $title
+      description: $description
+    }
+  ) {
+    success
+    issue {
+      id
+      identifier
+      title
+      url
     }
   }
 }
