@@ -8,10 +8,10 @@ import (
 )
 
 func LoadContext(context string) (string, error) {
-	if !strings.HasPrefix(context, ".") {
-		return "", InvalidFormatException("context must be a relative path starting with '.'")
-	}
 	if len(context) < 64 && strings.HasSuffix(context, ".md") {
+		if !strings.HasPrefix(context, ".") {
+			return "", InvalidFormatException("context must be a relative path starting with '.'")
+		}
 		pwd, err := os.Getwd()
 		if err != nil {
 			return "", fmt.Errorf("failed to get working directory: %w", err)

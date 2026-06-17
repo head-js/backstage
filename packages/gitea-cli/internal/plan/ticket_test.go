@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -77,5 +78,15 @@ func TestExtractPlanId(t *testing.T) {
 	}
 	if gotId != "PLAN-102" || gotName != "My Plan" || gotNumId != "102" {
 		t.Fatalf("ExtractPlanId() = (%q, %q, %q), want (PLAN-102, My Plan, 102)", gotId, gotName, gotNumId)
+	}
+}
+
+func TestExtractPlanIdEmptyTitle(t *testing.T) {
+	_, _, _, err := ExtractPlanId(" ")
+	if err == nil {
+		t.Fatal("ExtractPlanId() expected error")
+	}
+	if !strings.Contains(err.Error(), "title is empty, consider checking repo.description") {
+		t.Fatalf("ExtractPlanId() error = %v", err)
 	}
 }
