@@ -26,10 +26,8 @@ func GenNextPhaseId(appName, planId string) (string, error) {
 	for _, m := range milestones {
 		_, _, id, err := ExtractPhaseId(m.Title)
 		if err != nil {
-			fmt.Printf("Warning: invalid phase naming for milestone %s: %v\n", m.Title, err)
-			continue
+			return "", err
 		}
-		// id 已经是数字部分
 		ids = append(ids, id)
 	}
 
@@ -68,15 +66,12 @@ func GenNextTaskId(appName, planId, phaseId string) (string, error) {
 		return "", err
 	}
 
-	// 调用 translator 把 issue.title 转成我们业务定义的 taskId
 	var ids []string
 	for _, issue := range issues {
 		_, _, id, err := ExtractTaskId(issue.Title)
 		if err != nil {
-			fmt.Printf("Warning: invalid task naming for issue %s: %v\n", issue.Title, err)
-			continue
+			return "", err
 		}
-		// id 已经是数字部分
 		ids = append(ids, id)
 	}
 

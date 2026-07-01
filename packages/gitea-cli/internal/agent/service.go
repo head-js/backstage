@@ -2,9 +2,6 @@ package agent
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
 
 	"cmp"
 	"slices"
@@ -15,6 +12,31 @@ import (
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"com.lisitede.backstage.gitea/internal/plan"
 )
+
+func HeadPlan(appId string, planId string) (string, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return "", err
+	}
+
+	repo, err := adapter.GetRepo(appId, planId)
+	if err != nil {
+		return "", err
+	}
+
+	translator := plan.NewPlanTranslator()
+	plan, err := translator.TranslateRepo2Plan(repo)
+	if err != nil {
+		return "", err
+	}
+
+	return fmt.Sprintf(`# Plan Metadata
+- appId: %s
+- planId: %s
+- planName: %s
+- $source: "backstage-gitea agent HEAD /%s/%s"
+`, appId, planId, plan.Name, appId, planId), nil
+}
 
 func GetPlan(appId string, planId string) (string, error) {
 	adapter, err := internalGitea.NewAdapter()
@@ -196,7 +218,7 @@ func UpdatePhase(appId, planId, phaseId, status, context string) (map[string]int
 
 	// 如果提供了 context，加载内容并作为评论添加
 	if context != "" {
-		content, err := loadContext(context)
+		content, err := framework.LoadContext(context)
 		if err != nil {
 			return nil, err
 		}
@@ -350,7 +372,7 @@ func UpdateTask(appId, planId, phaseId, taskId, status, context string) (map[str
 
 	// 如果提供了 context，加载内容并作为评论添加
 	if context != "" {
-		content, err := loadContext(context)
+		content, err := framework.LoadContext(context)
 		if err != nil {
 			return nil, err
 		}
@@ -363,7 +385,6 @@ func UpdateTask(appId, planId, phaseId, taskId, status, context string) (map[str
 	return framework.RestOK, nil
 }
 
-// UpdatePlan
 func UpdatePlan(appId, planId, status, context string) (map[string]interface{}, error) {
 	// TODO: Plan 目前没有 Status 的概念
 
@@ -382,7 +403,7 @@ func UpdatePlan(appId, planId, status, context string) (map[string]interface{}, 
 
 	// 如果提供了 context，加载内容并作为评论添加
 	if context != "" {
-		content, err := loadContext(context)
+		content, err := framework.LoadContext(context)
 		if err != nil {
 			return nil, err
 		}
@@ -393,25 +414,4 @@ func UpdatePlan(appId, planId, status, context string) (map[string]interface{}, 
 	}
 
 	return framework.RestOK, nil
-}
-
-func loadContext(context string) (string, error) {
-	if !strings.HasPrefix(context, ".") {
-		return "", framework.InvalidFormatException("context must be a relative path starting with '.'")
-	}
-	if len(context) < 64 && strings.HasSuffix(context, ".md") {
-		pwd, err := os.Getwd()
-		if err != nil {
-			return "", fmt.Errorf("failed to get working directory: %w", err)
-		}
-		path := filepath.Join(pwd, context)
-		if _, err := os.Stat(path); err == nil {
-			content, err := os.ReadFile(path)
-			if err != nil {
-				return "", fmt.Errorf("failed to read context file: %w", err)
-			}
-			return string(content), nil
-		}
-	}
-	return context, nil
 }

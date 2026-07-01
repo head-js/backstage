@@ -115,7 +115,7 @@ func SyncPlanToWiki(appId, planId string) (interface{}, error) {
 // appId: e.g. cms-mgr
 // planTitle: e.g. "PLAN-102: UploadImage"
 func CreatePlan(appId, planTitle string) (*Plan, error) {
-	planId, _, err := ExtractPlanId(planTitle)
+	planId, _, _, err := ExtractPlanId(planTitle)
 	if err != nil {
 		return nil, err
 	}
@@ -150,7 +150,7 @@ func CreatePlan(appId, planTitle string) (*Plan, error) {
 	}
 
 	// 初始化 Issue for Plan
-	issue, err := adapter.CreateIssue(appId, planId, planTitle, "")
+	issue, err := adapter.CreateIssue(appId, planId, planTitle, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create issue: %w", err)
 	}
@@ -193,7 +193,7 @@ func CreatePhase(appId, planId, phaseName string) (*Phase, error) {
 		return nil, err
 	}
 
-	issue, err := adapter.CreateIssue(appId, planId, title, "")
+	issue, err := adapter.CreateIssue(appId, planId, title, "", "")
 	if err != nil {
 		return nil, err
 	}
@@ -241,7 +241,7 @@ func CreateTask(appId, planId, phaseId string, taskName string) (*Task, error) {
 	if err != nil {
 		return nil, err
 	}
-	issue, err := adapter.CreateIssue(appId, planId, title, milestoneId)
+	issue, err := adapter.CreateIssue(appId, planId, title, "", milestoneId)
 	if err != nil {
 		return nil, err
 	}
@@ -329,6 +329,47 @@ func ShowTask(appId, planId, phaseId, taskId string) (*Task, error) {
 	return nil, framework.NotFoundException("task not found: " + taskId)
 }
 
+// ListAllPlans 获取全量 Plans（参考 api.go 的 GET /repos）
+func ListAllPlans() ([]Plan, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	repos, err := adapter.ListRepos()
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch repos: %w", err)
+	}
+
+	translator := NewPlanTranslator()
+	plans, err := translator.TranslateRepoList2PlanList(repos)
+	if err != nil {
+		return nil, fmt.Errorf("failed to translate repos to plans: %w", err)
+	}
+
+	return plans, nil
+}
+
+// ListPlanOfApp 获取指定应用名称下的所有 plan repos
+func ListPlanOfApp(appId string) ([]Plan, error) {
+	adapter, err := internalGitea.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+	repos, err := adapter.ListRepoOfOwner(appId)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch repos: %w", err)
+	}
+
+	translator := NewPlanTranslator()
+	plans, err := translator.TranslateRepoList2PlanList(repos)
+	if err != nil {
+		return nil, fmt.Errorf("failed to translate repos to plans: %w", err)
+	}
+
+	return plans, nil
+}
+
 // ListPhaseOfPlan 获取指定 Plan 下的所有 Phases
 func ListPhaseOfPlan(appId, planId string) ([]Phase, error) {
 	adapter, err := internalGitea.NewAdapter()
@@ -371,7 +412,6 @@ func DownloadPlan(appId, planId string) (string, error) {
 		return "", fmt.Errorf("failed to get working directory: %w", err)
 	}
 	fmt.Printf("\033[31mDownload plan to: %s\033[0m\n", pwd)
-
 
 	adapter, err := internalGitea.NewAdapter()
 	if err != nil {
@@ -473,8 +513,3 @@ func DownloadPlan(appId, planId string) (string, error) {
 
 	return fmt.Sprintf("Downloaded to: %s", planDir), nil
 }
-
-
-
-
-

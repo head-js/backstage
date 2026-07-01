@@ -55,7 +55,7 @@ func (pt *PlanTranslator) TranslateRepoList2PlanList(repos []*gitea.Repository) 
 // TranslateIssue2Plan 将单个 Gitea Issue 转换为 Plan
 // Issue 代表 Plan 中的顶层 Issue（如 "PLAN-102: UploadImage"）
 func (pt *PlanTranslator) TranslateIssue2Plan(issue *gitea.Issue) (*Plan, error) {
-	planId, planName, err := ExtractPlanId(issue.Title)
+	planId, planName, _, err := ExtractPlanId(issue.Title)
 	if err != nil {
 		return nil, fmt.Errorf("invalid plan naming: %w", err)
 	}
@@ -87,7 +87,7 @@ func (pt *PlanTranslator) TranslateIssue2Plan(issue *gitea.Issue) (*Plan, error)
 
 // TranslateRepo2Plan 将单个 Gitea Repo 转换为 Plan
 func (pt *PlanTranslator) TranslateRepo2Plan(repo *gitea.Repository) (*Plan, error) {
-	planId, planName, err := ExtractPlanId(repo.Description)
+	planId, planName, _, err := ExtractPlanId(repo.Description)
 	if err != nil {
 		return nil, err
 	}
@@ -99,6 +99,8 @@ func (pt *PlanTranslator) TranslateRepo2Plan(repo *gitea.Repository) (*Plan, err
 		Gitea: GiteaExtra{
 			Type:        "REPO",
 			Id:          repo.ID,
+			Owner:       repo.Owner.UserName,
+			Repo:        repo.Name,
 			Description: repo.Description,
 			CreatedAt:   repo.Created.Format(time.RFC3339),
 			UpdatedAt:   repo.Updated.Format(time.RFC3339),

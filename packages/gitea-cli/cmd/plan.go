@@ -24,7 +24,8 @@ var planCmd = &cobra.Command{
 	Short: "A CLI tool to manage Plan / Phase / Task.",
 	Long: `A CLI tool to manage Plan / Phase / Task by RESTful-style path.
 Examples:
-	backstage-gitea plan LIST /cms-mgr/plans
+	backstage-gitea plan GET /plans
+	backstage-gitea plan GET /cms-mgr/plans
 	backstage-gitea plan GET  /cms-mgr/PLAN-102
 	backstage-gitea plan LIST /cms-mgr/PLAN-102/phases
 	backstage-gitea plan LIST /cms-mgr/PLAN-102/PHASE-200/tasks
@@ -65,8 +66,12 @@ Create Task Example:
 
 func init() {
 	// 注册 plan 路由
-	planRouter.Verb("LIST", "/:appId/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return listPlanOfApp(params["appId"])
+	planRouter.Verb("GET", "/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return plan.ListAllPlans()
+	})
+
+	planRouter.Verb("GET", "/:appId/plans", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return plan.ListPlanOfApp(params["appId"])
 	})
 
 	// TODO: 移动到 agent 命令
@@ -148,26 +153,6 @@ func init() {
 	planCmd.Flags().StringVar(&planCreateFlags.name, "name", "", "when create / update, provide the name")
 	planCmd.Flags().StringVar(&planCreateFlags.title, "title", "", "when create / update, provide the title; i.e. title = id + name")
 	rootCmd.AddCommand(planCmd)
-}
-
-// listPlanOfApp 获取指定应用名称下的所有 plan repos
-func listPlanOfApp(appId string) ([]plan.Plan, error) {
-	adapter, err := internalGitea.NewAdapter()
-	if err != nil {
-		return nil, err
-	}
-	repos, err := adapter.ListRepoOfOwner(appId)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch repos: %w", err)
-	}
-
-	translator := plan.NewPlanTranslator()
-	plans, err := translator.TranslateRepoList2PlanList(repos)
-	if err != nil {
-		return nil, fmt.Errorf("failed to translate repos to plans: %w", err)
-	}
-
-	return plans, nil
 }
 
 // showPlan 获取指定 planId 的单个 Plan 详情

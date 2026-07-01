@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"strings"
 
 	"com.lisitede.backstage.gitea/framework"
@@ -14,6 +15,7 @@ var agentRouter Router
 var agentUpdateFlags struct {
 	status  string
 	context string
+	title   string
 }
 
 var agentCmd = &cobra.Command{
@@ -23,6 +25,9 @@ var agentCmd = &cobra.Command{
 This command provides UX-optimized interfaces tailored for Agent usage patterns.
 
 Examples:
+  # Get Plan Metadata
+  backstage-gitea agent HEAD /cms-mgr/PLAN-102
+
   # Get Plan
   backstage-gitea agent GET /cms-mgr/PLAN-102
 
@@ -55,6 +60,9 @@ Examples:
 		}
 		if agentUpdateFlags.context != "" {
 			argsMap["context"] = agentUpdateFlags.context
+		}
+		if agentUpdateFlags.title != "" {
+			argsMap["title"] = agentUpdateFlags.title
 		}
 
 		// 调用路由
@@ -101,6 +109,9 @@ func init() {
 	})
 
 	agentRouter.Verb("PUT", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["status"] == "" {
+			return nil, fmt.Errorf("PUT /:appId/:planId/:phaseId/:taskId requires --status flag")
+		}
 		return internalAgent.UpdateTask(params["appId"], params["planId"], params["phaseId"], params["taskId"], args["status"], args["context"])
 	})
 
@@ -114,12 +125,15 @@ func init() {
 	})
 
 	agentRouter.Verb("PUT", "/:appId/:planId/:phaseId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		if args["status"] == "" {
+			return nil, fmt.Errorf("PUT /:appId/:planId/:phaseId requires --status flag")
+		}
 		return internalAgent.UpdatePhase(params["appId"], params["planId"], params["phaseId"], args["status"], args["context"])
 	})
 
 	// Plan
 	agentRouter.Verb("HEAD", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return nil, framework.NotImplementedException("")
+		return internalAgent.HeadPlan(params["appId"], params["planId"])
 	})
 
 	agentRouter.Verb("GET", "/:appId/:planId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -131,6 +145,8 @@ func init() {
 	})
 
 	agentCmd.Flags().SortFlags = false
+	agentCmd.Flags().StringVar(&agentUpdateFlags.title, "title", "", "")
+	_ = agentCmd.Flags().MarkHidden("title")
 	agentCmd.Flags().StringVar(&agentUpdateFlags.context, "context", "", "when create / update, provide the context or path to context markdown file")
 	agentCmd.Flags().StringVar(&agentUpdateFlags.status, "status", "", "when create / update, provide the status")
 

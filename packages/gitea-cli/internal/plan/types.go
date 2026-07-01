@@ -9,9 +9,11 @@ import (
 
 // GiteaExtra Gitea 对象的附加信息（Repo / Milestone 通用）
 type GiteaExtra struct {
-	Type        string   `json:"type"` // "REPO" | "MILESTONE" | "ISSUE"
-	Id          int64    `json:"id"`   // Gitea 对象 ID
-	No          int64    `json:"no"`   // Issue Number
+	Type        string   `json:"type"`  // "REPO" | "MILESTONE" | "ISSUE"
+	Id          int64    `json:"id"`    // Gitea 对象 ID
+	No          int64    `json:"no"`    // Issue Number
+	Owner       string   `json:"owner"` // Repo Owner（appId）
+	Repo        string   `json:"repo"`  // Repo Name
 	Title       string   `json:"title"`
 	Description string   `json:"description"` // 描述
 	Body        string   `json:"body"`

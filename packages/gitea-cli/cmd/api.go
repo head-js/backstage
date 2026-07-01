@@ -22,6 +22,7 @@ Examples:
 	backstage-gitea api GET /repos/:owner/:repoName/milestones
 	backstage-gitea api GET /repos/:owner/:repoName/issues
 	backstage-gitea api GET /repos/:owner/:repoName/issues/:issueId
+	backstage-gitea api GET /repos/:owner/:repoName/issues/:issueId/comments
 	backstage-gitea api GET /version
 	backstage-gitea api GET /users/:username/repos
 	backstage-gitea api POST /repos/:owner/:repoName/transfer-to/:newOwner`,

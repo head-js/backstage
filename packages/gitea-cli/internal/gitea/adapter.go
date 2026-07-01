@@ -157,9 +157,10 @@ func (a *Adapter) CreateLabel(owner, repo, name, color string) (*gitea.Label, er
 
 // CreateIssue 创建 Issue
 // milestoneId: Milestone 的数字 ID（可选，传入空字符串表示不关联）
-func (a *Adapter) CreateIssue(owner, repo, title string, milestoneId string) (*gitea.Issue, error) {
+func (a *Adapter) CreateIssue(owner, repo, title string, context string, milestoneId string) (*gitea.Issue, error) {
 	opts := gitea.CreateIssueOption{
 		Title: title,
+		Body:  context,
 	}
 	if milestoneId != "" {
 		var id int64
