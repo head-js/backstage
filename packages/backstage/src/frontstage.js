@@ -124,4 +124,58 @@ backstage.drawer = function drawer_(html, width = '50') {
 };
 
 
+backstage.onClick = function onClick(handler) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.title = 'Backstage';
+  button.innerHTML = `
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <rect x="3" y="3" width="7" height="7" rx="1"></rect>
+      <rect x="14" y="3" width="7" height="7" rx="1"></rect>
+      <rect x="3" y="14" width="7" height="7" rx="1"></rect>
+      <rect x="14" y="14" width="7" height="7" rx="1"></rect>
+    </svg>
+  `;
+  Object.assign(button.style, {
+    position: 'fixed',
+    right: '24px',
+    bottom: '24px',
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    border: 'none',
+    padding: '0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: '#f5f5f5',
+    backgroundColor: '#1f1f1f',
+    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
+    zIndex: '2147483646',
+    transition: 'background-color 0.15s ease, transform 0.15s ease',
+  });
+  button.addEventListener('mouseenter', () => {
+    button.style.backgroundColor = '#2b2b2b';
+    button.style.transform = 'scale(1.05)';
+  });
+  button.addEventListener('mouseleave', () => {
+    button.style.backgroundColor = '#1f1f1f';
+    button.style.transform = 'scale(1)';
+  });
+  button.addEventListener('click', () => {
+    try {
+      const result = handler();
+      if (result && typeof result.then === 'function') {
+        result.catch((err) => console.error('[BACKSTAGE] onClick handler error', err));
+      }
+    } catch (err) {
+      console.error('[BACKSTAGE] onClick handler error', err);
+    }
+  });
+  document.body.appendChild(button);
+  return button;
+};
+
+
 window.postMessage({ source: SOURCE, type: 'READY', from: 'FRONTSTAGE' });

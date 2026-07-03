@@ -253,13 +253,13 @@ var __webpack_exports__ = {};
 var exports = __webpack_exports__;
 var moduleMap = {
 	"./ajv": () => {
-		return Promise.all([__webpack_require__.e("vendors-node_modules_pnpm_ajv_6_12_6_node_modules_ajv_lib_ajv_js"), __webpack_require__.e("src_ajv_js")]).then(() => (() => ((__webpack_require__(6179)))));
+		return Promise.all([__webpack_require__.e("vendors-node_modules_ajv_lib_ajv_js"), __webpack_require__.e("src_ajv_js")]).then(() => (() => ((__webpack_require__(6179)))));
 	},
 	"./jsonata": () => {
-		return Promise.all([__webpack_require__.e("vendors-node_modules_pnpm_jsonata_2_0_5_node_modules_jsonata_jsonata_js"), __webpack_require__.e("src_jsonata_js")]).then(() => (() => ((__webpack_require__(9707)))));
+		return Promise.all([__webpack_require__.e("vendors-node_modules_jsonata_jsonata_js"), __webpack_require__.e("src_jsonata_js")]).then(() => (() => ((__webpack_require__(9707)))));
 	},
 	"./rxjs": () => {
-		return Promise.all([__webpack_require__.e("vendors-node_modules_pnpm_rxjs_7_5_7_node_modules_rxjs_dist_esm5_index_js"), __webpack_require__.e("src_rxjs_js")]).then(() => (() => ((__webpack_require__(2798)))));
+		return Promise.all([__webpack_require__.e("vendors-node_modules_rxjs_dist_esm5_index_js"), __webpack_require__.e("src_rxjs_js")]).then(() => (() => ((__webpack_require__(2798)))));
 	}
 };
 var get = (module, getScope) => {
