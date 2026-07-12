@@ -11,7 +11,10 @@ export interface MenuGroup {
 export const menuGroups: MenuGroup[] = [
   {
     label: "Overview",
-    items: [{ label: "Dashboard", path: "/dashboard" }],
+    items: [
+      { label: "Dashboard", path: "/dashboard" },
+      { label: "Agenda", path: "/agenda" },
+    ],
   },
   {
     label: "System",

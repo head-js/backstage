@@ -92,7 +92,7 @@ pub fn run() {
 
             #[cfg(target_os = "macos")]
             if let Some(workspace) = app.get_webview_window("workspace") {
-                set_window_alpha(&workspace, 0.8);
+                set_window_alpha(&workspace, 0.9);
             }
 
             if let (Some(menu_window), Some(workspace)) = (

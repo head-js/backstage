@@ -6,6 +6,7 @@ import {
   loadAppearance,
   type AppearanceSettings,
 } from "./lib/store";
+import { AgendaProvider } from "./lib/agenda/context";
 import { AppRoutes } from "./router";
 
 export default function AppWorkspace() {
@@ -43,11 +44,13 @@ export default function AppWorkspace() {
 
   return (
     <HashRouter>
-      <div className="h-screen min-w-0 bg-base-200">
-        <main className="app-scrollbar h-full overflow-y-auto p-4">
-          <AppRoutes />
-        </main>
-      </div>
+      <AgendaProvider>
+        <div className="h-screen min-w-0 bg-base-200">
+          <main className="app-scrollbar h-full overflow-y-auto p-4">
+            <AppRoutes />
+          </main>
+        </div>
+      </AgendaProvider>
     </HashRouter>
   );
 }
