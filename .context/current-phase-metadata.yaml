@@ -1,0 +1,8 @@
+# Phase Metadata
+- appId: backstage-gitea
+- planId: PLAN-101
+- phaseId: PHASE-200
+- phaseName: 注入脚本实现
+- phaseStatus: TODO
+- $source: "backstage-gitea agent HEAD /backstage-gitea/PLAN-101/PHASE-200"
+

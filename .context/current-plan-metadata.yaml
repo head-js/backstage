@@ -1,0 +1,4 @@
+appId: backstage-gitea
+planId: PLAN-101
+planName: Gitlab Issues 注入式读取可行性验证
+$source: backstage-gitea agent HEAD /backstage-gitea/PLAN-101
