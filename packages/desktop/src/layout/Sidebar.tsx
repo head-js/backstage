@@ -1,10 +1,14 @@
-import { NavLink } from "react-router-dom";
 import { menuGroups } from "../router/menu";
 
-export function Sidebar() {
+interface SidebarProps {
+  activePath?: string | null;
+  onNavigate?: (path: string) => void;
+}
+
+export function Sidebar({ activePath, onNavigate }: SidebarProps) {
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-base-300 bg-base-100">
-      <div className="flex h-14 items-center border-b border-base-300 px-4">
+    <aside className="flex h-screen w-52 shrink-0 flex-col border-r border-base-300 bg-transparent">
+      <div className="flex h-14 items-center border-b border-base-300 bg-yellow-100 px-4">
         <div>
           <div className="text-sm font-semibold leading-tight">backstage desktop</div>
           <div className="text-xs text-base-content/60">Desktop console</div>
@@ -19,14 +23,13 @@ export function Sidebar() {
             <ul className="menu gap-1 p-0">
               {group.items.map((item) => (
                 <li key={item.path}>
-                  <NavLink
-                    to={item.path}
-                    className={({ isActive }) =>
-                      isActive ? "active text-sm font-medium" : "text-sm font-medium"
-                    }
+                  <button
+                    type="button"
+                    onClick={() => onNavigate?.(item.path)}
+                    className={activePath === item.path ? "active text-sm font-medium" : "text-sm font-medium"}
                   >
                     {item.label}
-                  </NavLink>
+                  </button>
                 </li>
               ))}
             </ul>
