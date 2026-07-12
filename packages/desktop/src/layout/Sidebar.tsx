@@ -26,7 +26,11 @@ export function Sidebar({ activePath, onNavigate }: SidebarProps) {
                   <button
                     type="button"
                     onClick={() => onNavigate?.(item.path)}
-                    className={activePath === item.path ? "active text-sm font-medium" : "text-sm font-medium"}
+                    className={
+                      activePath === item.path
+                        ? "active !bg-base-100 text-sm font-medium"
+                        : "!bg-base-100 text-sm font-medium"
+                    }
                   >
                     {item.label}
                   </button>
