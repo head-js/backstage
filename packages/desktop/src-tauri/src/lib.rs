@@ -1,10 +1,14 @@
 mod commands;
+mod layout;
 mod scheduler;
+
+#[cfg(target_os = "macos")]
+use objc2_app_kit::NSWindow;
 
 use tauri::{
     menu::{CheckMenuItemBuilder, MenuBuilder, MenuItemBuilder},
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Manager, WindowEvent,
 };
 
 #[cfg(target_os = "windows")]
@@ -21,6 +25,35 @@ fn set_window_opacity(hwnd: HWND, opacity: u8) {
     let ex_style = unsafe { GetWindowLongPtrW(hwnd, GWL_EXSTYLE) };
     unsafe { SetWindowLongPtrW(hwnd, GWL_EXSTYLE, ex_style | WS_EX_LAYERED.0 as isize) };
     unsafe { let _ = SetLayeredWindowAttributes(hwnd, COLORREF(0), opacity, LWA_ALPHA); };
+}
+
+#[cfg(target_os = "macos")]
+fn set_window_alpha(window: &tauri::WebviewWindow, alpha: f64) {
+    let label = window.label().to_string();
+    match window.ns_window() {
+        Ok(ns_window) => unsafe {
+            let ns_window = ns_window as *mut NSWindow;
+            (*ns_window).setAlphaValue(alpha);
+            let applied_alpha = (*ns_window).alphaValue();
+            tracing::info!("[window] {label} native alpha={applied_alpha}");
+        },
+        Err(error) => {
+            tracing::error!("[window] failed to access {label} NSWindow: {error}");
+        }
+    }
+}
+
+fn hide_workspace(workspace: &tauri::WebviewWindow) {
+    let _ = workspace.hide();
+}
+
+fn show_menu(menu: &tauri::WebviewWindow, workspace: Option<&tauri::WebviewWindow>) {
+    let _ = menu.show();
+    let _ = menu.unminimize();
+    if let Some(workspace) = workspace {
+        layout::sync_workspace_window(menu, workspace);
+    }
+    let _ = menu.set_focus();
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -52,10 +85,49 @@ pub fn run() {
                 .items(&[&show_item, &hide_item, &top_item, &quit_item])
                 .build()?;
 
-            // #[cfg(target_os = "windows")]
-            // if let Some(window) = app.get_webview_window("main") {
-            //     ...set_window_opacity...
-            // }
+            #[cfg(target_os = "macos")]
+            if let Some(menu) = app.get_webview_window("menu") {
+                set_window_alpha(&menu, 1.0);
+            }
+
+            #[cfg(target_os = "macos")]
+            if let Some(workspace) = app.get_webview_window("workspace") {
+                set_window_alpha(&workspace, 0.8);
+            }
+
+            if let (Some(menu_window), Some(workspace)) = (
+                app.get_webview_window("menu"),
+                app.get_webview_window("workspace"),
+            ) {
+                layout::sync_workspace_window(&menu_window, &workspace);
+                layout::start_workspace_follow_loop(menu_window.clone(), workspace.clone());
+                let menu_for_events = menu_window.clone();
+                let workspace_for_events = workspace.clone();
+                menu_window.on_window_event(move |event| match event {
+                    WindowEvent::Moved(_)
+                    | WindowEvent::Resized(_)
+                    | WindowEvent::ScaleFactorChanged { .. } => {
+                        if menu_for_events.is_minimized().unwrap_or(false) {
+                            hide_workspace(&workspace_for_events);
+                            return;
+                        }
+                        layout::sync_workspace_window(&menu_for_events, &workspace_for_events);
+                    }
+                    WindowEvent::CloseRequested { api, .. } => {
+                        api.prevent_close();
+                        hide_workspace(&workspace_for_events);
+                        let _ = menu_for_events.hide();
+                    }
+                    WindowEvent::Destroyed => {
+                        hide_workspace(&workspace_for_events);
+                    }
+                    _ => {}
+                });
+            }
+
+            if let Some(workspace) = app.get_webview_window("workspace") {
+                hide_workspace(&workspace);
+            }
 
             TrayIconBuilder::new()
                 .icon(app.default_window_icon().unwrap().clone())
@@ -63,20 +135,27 @@ pub fn run() {
                 .menu(&menu)
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                        if let Some(menu_window) = app.get_webview_window("menu") {
+                            let workspace = app.get_webview_window("workspace");
+                            show_menu(&menu_window, workspace.as_ref());
                         }
                     }
                     "hide" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.hide();
+                        if let Some(workspace) = app.get_webview_window("workspace") {
+                            hide_workspace(&workspace);
+                        }
+                        if let Some(menu_window) = app.get_webview_window("menu") {
+                            let _ = menu_window.hide();
                         }
                     }
                     "toggle_top" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            if let Ok(is_top) = window.is_always_on_top() {
-                                let _ = window.set_always_on_top(!is_top);
+                        if let Some(menu_window) = app.get_webview_window("menu") {
+                            if let Ok(is_top) = menu_window.is_always_on_top() {
+                                let next = !is_top;
+                                let _ = menu_window.set_always_on_top(next);
+                                if let Some(workspace) = app.get_webview_window("workspace") {
+                                    let _ = workspace.set_always_on_top(next);
+                                }
                             }
                         }
                     }
@@ -93,19 +172,14 @@ pub fn run() {
                     } = event
                     {
                         let app = tray.app_handle();
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.set_focus();
+                        if let Some(menu_window) = app.get_webview_window("menu") {
+                            let workspace = app.get_webview_window("workspace");
+                            show_menu(&menu_window, workspace.as_ref());
                         }
                     }
                 })
                 .build(app)?;
 
-            #[cfg(debug_assertions)]
-            {
-                let window = app.get_webview_window("main").unwrap();
-                window.open_devtools();
-            }
             Ok(())
         })
         .run(tauri::generate_context!())

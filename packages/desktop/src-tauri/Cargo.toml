@@ -7,7 +7,8 @@ edition = "2021"
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
-tauri = { version = "2", features = ["tray-icon"] }
+tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
+objc2-app-kit = "0.3"
 image = "0.25"
 tauri-plugin-shell = "2"
 tauri-plugin-os = "2"
