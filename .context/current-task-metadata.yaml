@@ -1,0 +1,9 @@
+# Task Metadata
+- appId: backstage-gitea
+- planId: PLAN-101
+- phaseId: PHASE-200
+- taskId: TASK-130
+- taskName: 实现 frontstage 注入浮层按钮触发 dashboard（方案 B）
+- taskStatus: TODO
+- $source: "backstage-gitea agent GET /backstage-gitea/PLAN-101/PHASE-200/TASK-130"
+
