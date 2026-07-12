@@ -103,8 +103,14 @@ typings/
 # TernJS port file
 .tern-port
 
+# Tauri
+target/
+**/gen/schemas/
+
 .DS_Store
 
 .expo/
 
 public/
+
+packages/desktop/dist/
