@@ -1,0 +1,28 @@
+[
+  {
+    "id": "AGENDA-001",
+    "name": "Codex - 检查架构设计类任务的进度",
+    "children": [
+      { "appId": "appA", "planId": "plan-1", "name": "Confirm release scope with stakeholders" },
+      { "appId": "appA", "planId": "plan-2", "name": "Decide on rollback strategy" },
+      { "appId": "appB", "planId": "plan-3", "name": "Sign off on migration plan" }
+    ]
+  },
+  {
+    "id": "AGENDA-002",
+    "name": "VSCode + Kilo - 检查开发类任务的进度",
+    "children": [
+      { "appId": "appC", "planId": "plan-4", "name": "Verify nightly backup completed" },
+      { "appId": "appC", "planId": "plan-5", "name": "Inspect cron health metrics" },
+      { "appId": "appD", "planId": "plan-6", "name": "Review queue backlog" }
+    ]
+  },
+  {
+    "id": "AGENDA-003",
+    "name": "Amuro - 检查调研类任务的进度",
+    "children": [
+      { "appId": "GLNT", "planId": "GLNT-5", "name": "设备信息采集方案" },
+      { "appId": "GLNT", "planId": "GLNT-7", "name": "神策全埋点事件场景解析" }
+    ]
+  }
+]
