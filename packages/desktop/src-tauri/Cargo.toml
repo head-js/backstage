@@ -8,7 +8,6 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = ["macos-private-api", "tray-icon"] }
-objc2-app-kit = "0.3"
 image = "0.25"
 tauri-plugin-shell = "2"
 tauri-plugin-os = "2"
@@ -19,6 +18,9 @@ tokio = { version = "1", features = ["time", "sync", "process"] }
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"] }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2-app-kit = "0.3"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.61", features = ["Win32_UI_WindowsAndMessaging", "Win32_Foundation"] }

@@ -24,6 +24,7 @@
         "minWidth": 208,
         "minHeight": 600,
         "resizable": false,
+        "maximizable": false,
         "fullscreen": false,
         "alwaysOnTop": true,
         "decorations": true,
