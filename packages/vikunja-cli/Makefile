@@ -1,10 +1,14 @@
-.PHONY: build build-linux build-windows clean test
+.PHONY: build build-mac build-linux build-windows clean test
 
 DIST := .dist
 
 build:
 	mkdir -p $(DIST)
 	go build -o $(DIST)/backstage-vikunja .
+
+build-mac:
+	mkdir -p $(DIST)
+	GOOS=darwin GOARCH=arm64 go build -o $(DIST)/backstage-vikunja .
 
 build-linux:
 	mkdir -p $(DIST)
