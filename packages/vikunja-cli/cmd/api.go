@@ -12,6 +12,7 @@ var apiRouter Router
 
 var apiFlags struct {
 	context string
+	name    string
 }
 
 var apiCmd = &cobra.Command{
@@ -35,6 +36,7 @@ Examples:
 
 		argsMap := map[string]string{
 			"context": apiFlags.context,
+			"name":    apiFlags.name,
 		}
 
 		result, err := apiRouter.Invoke(method, path, argsMap)
@@ -54,6 +56,19 @@ func init() {
 			return nil, err
 		}
 		return adapter.ListProjects()
+	})
+
+	apiRouter.Verb("POST", "/projects", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		name := strings.TrimSpace(args["name"])
+		if name == "" {
+			return nil, framework.InvalidFormatException("POST /projects requires --name")
+		}
+
+		adapter, err := internalVikunja.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.CreateProject(name)
 	})
 
 	apiRouter.Verb("GET", "/projects/:projectId/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -126,6 +141,7 @@ func init() {
 	})
 
 	apiCmd.Flags().StringVar(&apiFlags.context, "context", "", "comment text")
+	apiCmd.Flags().StringVar(&apiFlags.name, "name", "", "project title")
 	apiCmd.Flags().SortFlags = false
 	rootCmd.AddCommand(apiCmd)
 }

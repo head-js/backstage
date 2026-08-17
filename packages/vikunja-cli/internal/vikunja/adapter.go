@@ -34,6 +34,17 @@ func (a *Adapter) GetInfo() (any, error) {
 	return a.Do(context.Background(), http.MethodGet, "/info", nil)
 }
 
+// CreateProject creates a new project with the given title and returns the created project.
+func (a *Adapter) CreateProject(title string) (any, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("project title is required")
+	}
+
+	body := map[string]string{"title": title}
+	return a.Do(context.Background(), http.MethodPost, "/projects", body)
+}
+
 // ListProjects returns the project collection visible to the authenticated user.
 func (a *Adapter) ListProjects() (any, error) {
 	return a.Do(context.Background(), http.MethodGet, "/projects", nil)
@@ -73,6 +84,50 @@ func (a *Adapter) ListProjectViewBuckets(projectID, viewID string) (any, error) 
 
 	path := "/projects/" + url.PathEscape(projectID) + "/views/" + url.PathEscape(viewID) + "/buckets"
 	return a.Do(context.Background(), http.MethodGet, path, nil)
+}
+
+// CreateBucket creates a kanban bucket in a project view.
+func (a *Adapter) CreateBucket(projectID, viewID, title string, position float64) (any, error) {
+	projectID, _, err := parseID("project", projectID)
+	if err != nil {
+		return nil, err
+	}
+	viewID, _, err = parseID("view", viewID)
+	if err != nil {
+		return nil, err
+	}
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("bucket title is required")
+	}
+
+	path := "/projects/" + projectID + "/views/" + viewID + "/buckets"
+	body := map[string]any{"title": title, "position": position}
+	return a.Do(context.Background(), http.MethodPost, path, body)
+}
+
+// UpdateBucket updates a kanban bucket's title and position.
+func (a *Adapter) UpdateBucket(projectID, viewID, bucketID, title string, position float64) (any, error) {
+	projectID, _, err := parseID("project", projectID)
+	if err != nil {
+		return nil, err
+	}
+	viewID, _, err = parseID("view", viewID)
+	if err != nil {
+		return nil, err
+	}
+	bucketID, _, err = parseID("bucket", bucketID)
+	if err != nil {
+		return nil, err
+	}
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("bucket title is required")
+	}
+
+	path := "/projects/" + projectID + "/views/" + viewID + "/buckets/" + bucketID
+	body := map[string]any{"title": title, "position": position}
+	return a.Do(context.Background(), http.MethodPut, path, body)
 }
 
 // MoveTaskToBucket places a task in a bucket of a project view.
