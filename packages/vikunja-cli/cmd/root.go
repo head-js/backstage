@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -53,10 +54,12 @@ func printResult(data interface{}) {
 		return
 	}
 
-	jsonBytes, err := json.Marshal(data)
-	if err != nil {
+	var buf bytes.Buffer
+	encoder := json.NewEncoder(&buf)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(data); err != nil {
 		fmt.Printf("%v\n", data)
 		return
 	}
-	fmt.Println(string(jsonBytes))
+	fmt.Print(buf.String())
 }
