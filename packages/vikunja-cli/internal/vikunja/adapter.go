@@ -119,6 +119,71 @@ func (a *Adapter) UpdateProjectTitle(projectID, title string) (any, error) {
 	return a.do(context.Background(), http.MethodPatch, "/api/v2/projects/"+projectID, body, "application/merge-patch+json")
 }
 
+// ListLabels returns the labels visible to the authenticated user.
+func (a *Adapter) ListLabels() (any, error) {
+	return a.Do(context.Background(), http.MethodGet, "/labels", nil)
+}
+
+// SearchLabels returns labels matching the given query.
+func (a *Adapter) SearchLabels(query string) (any, error) {
+	values := url.Values{}
+	values.Set("q", strings.TrimSpace(query))
+	values.Set("per_page", "1000")
+	return a.Do(context.Background(), http.MethodGet, "/labels?"+values.Encode(), nil)
+}
+
+// CreateLabel creates a label with the given title and color.
+func (a *Adapter) CreateLabel(title, color string) (any, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("label title is required")
+	}
+	color = strings.TrimSpace(color)
+	if color == "" {
+		return nil, framework.InvalidFormatException("label color is required")
+	}
+
+	body := map[string]string{"title": title, "hex_color": color}
+	return a.Do(context.Background(), http.MethodPost, "/labels", body)
+}
+
+// CreateSavedFilter creates a cross-project saved filter.
+func (a *Adapter) CreateSavedFilter(title, filter string) (any, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("saved filter title is required")
+	}
+	filter = strings.TrimSpace(filter)
+	if filter == "" {
+		return nil, framework.InvalidFormatException("saved filter expression is required")
+	}
+
+	body := map[string]any{
+		"title": title,
+		"filters": map[string]any{
+			"filter":               filter,
+			"filter_include_nulls": false,
+		},
+	}
+	return a.Do(context.Background(), http.MethodPost, "/filters", body)
+}
+
+// UpdateProjectTitle updates only the title of an existing project.
+func (a *Adapter) UpdateProjectTitle(projectID, title string) (any, error) {
+	projectID, _, err := parseID("project", projectID)
+	if err != nil {
+		return nil, err
+	}
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("project title is required")
+	}
+
+	body := map[string]string{"title": title}
+	// Vikunja v2 declares JSON Merge Patch for partial project updates.
+	return a.do(context.Background(), http.MethodPatch, "/projects/"+projectID, body, "application/merge-patch+json")
+}
+
 // ListProjectTasks returns the tasks belonging to a project.
 func (a *Adapter) ListProjectTasks(projectID string) (any, error) {
 	projectID = strings.TrimSpace(projectID)
