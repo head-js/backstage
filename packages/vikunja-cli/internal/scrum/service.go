@@ -29,6 +29,17 @@ var kanbanBucketSpec = []bucketSpec{
 	{Name: "DONE", Position: 300, RenameFrom: "Done"},
 }
 
+type labelSpec struct {
+	Name  string
+	Color string
+}
+
+var defaultLabelSpec = []labelSpec{
+	{Name: "创造", Color: "22C55E"},
+	{Name: "迭代", Color: "3B82F6"},
+	{Name: "维护", Color: "F59E0B"},
+}
+
 // CreateWorkspace 创建 scrum 工作区：先创建默认项目，再按规范调整 kanban buckets。
 func CreateWorkspace(name string) (any, error) {
 	adapter, err := internalVikunja.NewAdapter()
@@ -45,37 +56,230 @@ func CreateWorkspace(name string) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	buckets, err := adapter.ListProjectViewBuckets(projectID, kanbanViewID)
-	if err != nil {
+	if err := configureKanbanBuckets(adapter, projectID, kanbanViewID); err != nil {
 		return nil, err
-	}
-	idByTitle, err := indexBucketsByTitle(buckets)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, s := range kanbanBucketSpec {
-		if s.RenameFrom != "" {
-			bucketID, ok := idByTitle[s.RenameFrom]
-			if !ok {
-				return nil, fmt.Errorf("default bucket %q not found", s.RenameFrom)
-			}
-			if _, err := adapter.UpdateBucket(projectID, kanbanViewID, bucketID, s.Name, s.Position); err != nil {
-				return nil, err
-			}
-			continue
-		}
-		if _, err := adapter.CreateBucket(projectID, kanbanViewID, s.Name, s.Position); err != nil {
-			return nil, err
-		}
 	}
 
 	return framework.RestOK, nil
 }
 
-// ListWorkspaces 列出全部工作区，并转换为 Workspace 列表。
-// 排除 Vikunja 内置项目（Inbox、My Open Tasks）。
+// Initialize configures the built-in Inbox and ensures the default labels and saved filters exist.
+func Initialize() (any, error) {
+	adapter, err := internalVikunja.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	projects, err := adapter.ListProjects()
+	if err != nil {
+		return nil, err
+	}
+	var resp internalVikunja.VikunjaResp
+	if err := decode(projects, &resp); err != nil {
+		return nil, err
+	}
+
+	for _, item := range resp.Items {
+		var project internalVikunja.VikunjaProject
+		if err := json.Unmarshal(item, &project); err != nil {
+			return nil, err
+		}
+		if project.Title != "Inbox" {
+			continue
+		}
+
+		projectID := strconv.FormatInt(project.Id, 10)
+		views, err := adapter.ListProjectViews(projectID)
+		if err != nil {
+			return nil, err
+		}
+		kanbanViewID, err := findKanbanViewID(views)
+		if err != nil {
+			return nil, err
+		}
+		if err := configureKanbanBuckets(adapter, projectID, kanbanViewID); err != nil {
+			return nil, err
+		}
+		if _, err := adapter.UpdateProjectTitle(projectID, "Backlog"); err != nil {
+			return nil, err
+		}
+		break
+	}
+	labelIDs, err := ensureDefaultLabels(adapter)
+	if err != nil {
+		return nil, err
+	}
+	if err := ensureDefaultSavedFilters(adapter, resp.Items, labelIDs); err != nil {
+		return nil, err
+	}
+	if err := configureDefaultSavedFilterBuckets(adapter); err != nil {
+		return nil, err
+	}
+
+	return framework.RestOK, nil
+}
+
+func ensureDefaultLabels(adapter *internalVikunja.Adapter) (map[string]int64, error) {
+	labelIDs := make(map[string]int64, len(defaultLabelSpec))
+	for _, spec := range defaultLabelSpec {
+		labels, err := adapter.SearchLabels(spec.Name)
+		if err != nil {
+			return nil, err
+		}
+
+		var resp internalVikunja.VikunjaResp
+		if err := decode(labels, &resp); err != nil {
+			return nil, err
+		}
+
+		for _, item := range resp.Items {
+			var label internalVikunja.VikunjaLabel
+			if err := json.Unmarshal(item, &label); err != nil {
+				return nil, err
+			}
+			if label.Title == spec.Name {
+				if existingID := labelIDs[spec.Name]; existingID != 0 && existingID != label.Id {
+					return nil, fmt.Errorf("multiple labels named %q found", spec.Name)
+				}
+				labelIDs[spec.Name] = label.Id
+			}
+		}
+		if labelIDs[spec.Name] != 0 {
+			continue
+		}
+
+		created, err := adapter.CreateLabel(spec.Name, spec.Color)
+		if err != nil {
+			return nil, err
+		}
+		var label internalVikunja.VikunjaLabel
+		if err := decode(created, &label); err != nil {
+			return nil, err
+		}
+		if label.Id <= 0 {
+			return nil, fmt.Errorf("created label %q has invalid id %d", spec.Name, label.Id)
+		}
+		labelIDs[spec.Name] = label.Id
+	}
+	return labelIDs, nil
+}
+
+func ensureDefaultSavedFilters(adapter *internalVikunja.Adapter, projects []json.RawMessage, labelIDs map[string]int64) error {
+	existing := make(map[string]bool, len(defaultLabelSpec))
+	for _, item := range projects {
+		var project internalVikunja.VikunjaProject
+		if err := json.Unmarshal(item, &project); err != nil {
+			return err
+		}
+		if project.Id < -1 {
+			existing[project.Title] = true
+		}
+	}
+
+	for _, spec := range defaultLabelSpec {
+		if existing[spec.Name] {
+			continue
+		}
+		labelID := labelIDs[spec.Name]
+		if labelID <= 0 {
+			return fmt.Errorf("default label %q has no valid id", spec.Name)
+		}
+		filter := "labels = " + strconv.FormatInt(labelID, 10)
+		if _, err := adapter.CreateSavedFilter(spec.Name, filter); err != nil {
+			return err
+		}
+		existing[spec.Name] = true
+	}
+	return nil
+}
+
+func configureDefaultSavedFilterBuckets(adapter *internalVikunja.Adapter) error {
+	projects, err := adapter.ListProjects()
+	if err != nil {
+		return err
+	}
+	var resp internalVikunja.VikunjaResp
+	if err := decode(projects, &resp); err != nil {
+		return err
+	}
+
+	wanted := make(map[string]bool, len(defaultLabelSpec))
+	for _, spec := range defaultLabelSpec {
+		wanted[spec.Name] = true
+	}
+
+	configured := make(map[string]bool, len(defaultLabelSpec))
+	for _, item := range resp.Items {
+		var project internalVikunja.VikunjaProject
+		if err := json.Unmarshal(item, &project); err != nil {
+			return err
+		}
+		if project.Id >= -1 || !wanted[project.Title] {
+			continue
+		}
+		if configured[project.Title] {
+			return fmt.Errorf("multiple saved filters named %q found", project.Title)
+		}
+
+		projectID := strconv.FormatInt(project.Id, 10)
+		views, err := adapter.ListProjectViews(projectID)
+		if err != nil {
+			return err
+		}
+		kanbanViewID, err := findKanbanViewID(views)
+		if err != nil {
+			return err
+		}
+		if err := configureKanbanBuckets(adapter, projectID, kanbanViewID); err != nil {
+			return err
+		}
+		configured[project.Title] = true
+	}
+
+	for _, spec := range defaultLabelSpec {
+		if !configured[spec.Name] {
+			return fmt.Errorf("default saved filter %q not found", spec.Name)
+		}
+	}
+	return nil
+}
+
+func configureKanbanBuckets(adapter *internalVikunja.Adapter, projectID, kanbanViewID string) error {
+	buckets, err := adapter.ListProjectViewBuckets(projectID, kanbanViewID)
+	if err != nil {
+		return err
+	}
+	idByTitle, err := indexBucketsByTitle(buckets)
+	if err != nil {
+		return err
+	}
+
+	for _, s := range kanbanBucketSpec {
+		if bucketID, ok := idByTitle[s.Name]; ok {
+			if _, err := adapter.UpdateBucket(projectID, kanbanViewID, bucketID, s.Name, s.Position); err != nil {
+				return err
+			}
+			continue
+		}
+		if s.RenameFrom != "" {
+			bucketID, ok := idByTitle[s.RenameFrom]
+			if !ok {
+				return fmt.Errorf("default bucket %q not found", s.RenameFrom)
+			}
+			if _, err := adapter.UpdateBucket(projectID, kanbanViewID, bucketID, s.Name, s.Position); err != nil {
+				return err
+			}
+			continue
+		}
+		if _, err := adapter.CreateBucket(projectID, kanbanViewID, s.Name, s.Position); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ListWorkspaces 列出全部真实项目，并转换为 Workspace 列表。
+// Vikunja 使用负 ID 表示 saved filter 等伪项目。
 func ListWorkspaces() ([]Workspace, error) {
 	adapter, err := internalVikunja.NewAdapter()
 	if err != nil {
@@ -99,10 +303,9 @@ func ListWorkspaces() ([]Workspace, error) {
 		if err := json.Unmarshal(item, &vp); err != nil {
 			return nil, err
 		}
-		if vp.Title == "Inbox" || vp.Title == "My Open Tasks" {
-			continue
+		if vp.Id >= 0 {
+			workspaces = append(workspaces, translator.TranslateVikunjaProject2Workspace(&vp))
 		}
-		workspaces = append(workspaces, translator.TranslateVikunjaProject2Workspace(&vp))
 	}
 	return workspaces, nil
 }
@@ -171,6 +374,7 @@ func UpdateTaskStatus(workspaceID, taskID, status string) (any, error) {
 	if err != nil || taskIDValue <= 0 {
 		return nil, framework.InvalidFormatException("task ID must be a positive integer")
 	}
+	taskID = strconv.FormatInt(taskIDValue, 10)
 
 	status = strings.TrimSpace(status)
 	if status == "" {
@@ -197,32 +401,93 @@ func UpdateTaskStatus(workspaceID, taskID, status string) (any, error) {
 		return nil, framework.NotFoundException(fmt.Sprintf("task %s not found in workspace %s", taskID, workspaceID))
 	}
 
-	views, err := adapter.ListProjectViews(workspaceID)
-	if err != nil {
+	if err := moveTaskToStatus(adapter, workspaceID, taskID, status); err != nil {
 		return nil, err
 	}
-	kanbanViewID, err := findKanbanViewID(views)
-	if err != nil {
-		return nil, err
-	}
-
-	buckets, err := adapter.ListProjectViewBuckets(workspaceID, kanbanViewID)
-	if err != nil {
-		return nil, err
-	}
-	idByTitle, err := indexBucketsByTitle(buckets)
-	if err != nil {
-		return nil, err
-	}
-	bucketID, ok := idByTitle[status]
-	if !ok {
-		return nil, fmt.Errorf("bucket %q not found in workspace %s", status, workspaceID)
-	}
-
-	if _, err := adapter.MoveTaskToBucket(workspaceID, kanbanViewID, bucketID, strconv.FormatInt(taskIDValue, 10)); err != nil {
+	if err := syncTaskStatusToLabelSavedFilters(adapter, task.Labels, taskID, status); err != nil {
 		return nil, err
 	}
 	return framework.RestOK, nil
+}
+
+func moveTaskToStatus(adapter *internalVikunja.Adapter, projectID, taskID, status string) error {
+	views, err := adapter.ListProjectViews(projectID)
+	if err != nil {
+		return err
+	}
+	kanbanViewID, err := findKanbanViewID(views)
+	if err != nil {
+		return err
+	}
+
+	buckets, err := adapter.ListProjectViewBuckets(projectID, kanbanViewID)
+	if err != nil {
+		return err
+	}
+	idByTitle, err := indexBucketsByTitle(buckets)
+	if err != nil {
+		return err
+	}
+	bucketID, ok := idByTitle[status]
+	if !ok {
+		return fmt.Errorf("bucket %q not found in project %s", status, projectID)
+	}
+
+	_, err = adapter.MoveTaskToBucket(projectID, kanbanViewID, bucketID, taskID)
+	return err
+}
+
+func syncTaskStatusToLabelSavedFilters(adapter *internalVikunja.Adapter, labels []internalVikunja.VikunjaLabel, taskID, status string) error {
+	defaultLabels := make(map[string]bool, len(defaultLabelSpec))
+	for _, spec := range defaultLabelSpec {
+		defaultLabels[spec.Name] = true
+	}
+
+	wanted := make(map[string]bool, len(labels))
+	for _, label := range labels {
+		if defaultLabels[label.Title] {
+			wanted[label.Title] = true
+		}
+	}
+	if len(wanted) == 0 {
+		return nil
+	}
+
+	projects, err := adapter.ListProjects()
+	if err != nil {
+		return err
+	}
+	var resp internalVikunja.VikunjaResp
+	if err := decode(projects, &resp); err != nil {
+		return err
+	}
+
+	synced := make(map[string]bool, len(wanted))
+	for _, item := range resp.Items {
+		var project internalVikunja.VikunjaProject
+		if err := json.Unmarshal(item, &project); err != nil {
+			return err
+		}
+		if project.Id >= -1 || !wanted[project.Title] {
+			continue
+		}
+		if synced[project.Title] {
+			return fmt.Errorf("multiple saved filters named %q found", project.Title)
+		}
+
+		projectID := strconv.FormatInt(project.Id, 10)
+		if err := moveTaskToStatus(adapter, projectID, taskID, status); err != nil {
+			return fmt.Errorf("move task %s in saved filter %q: %w", taskID, project.Title, err)
+		}
+		synced[project.Title] = true
+	}
+
+	for title := range wanted {
+		if !synced[title] {
+			return fmt.Errorf("saved filter %q not found for task label", title)
+		}
+	}
+	return nil
 }
 
 func isScrumStatus(status string) bool {

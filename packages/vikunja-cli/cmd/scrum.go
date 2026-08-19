@@ -46,6 +46,10 @@ Examples:
 }
 
 func init() {
+	scrumRouter.Verb("POST", "/init", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		return scrum.Initialize()
+	})
+
 	scrumRouter.Verb("GET", "/workspaces", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return scrum.ListWorkspaces()
 	})

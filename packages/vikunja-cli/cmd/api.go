@@ -13,6 +13,7 @@ var apiRouter Router
 var apiFlags struct {
 	context string
 	name    string
+	color   string
 }
 
 var apiCmd = &cobra.Command{
@@ -22,6 +23,8 @@ var apiCmd = &cobra.Command{
 Examples:
 	backstage-vikunja api GET /version
 	backstage-vikunja api GET /projects
+	backstage-vikunja api GET /labels
+	backstage-vikunja api POST /labels --name "important" --color "ff0000"
 	backstage-vikunja api GET /projects/42/tasks
 	backstage-vikunja api GET /projects/42/views
 	backstage-vikunja api GET /projects/42/views/7/buckets
@@ -37,6 +40,7 @@ Examples:
 		argsMap := map[string]string{
 			"context": apiFlags.context,
 			"name":    apiFlags.name,
+			"color":   apiFlags.color,
 		}
 
 		result, err := apiRouter.Invoke(method, path, argsMap)
@@ -69,6 +73,31 @@ func init() {
 			return nil, err
 		}
 		return adapter.CreateProject(name)
+	})
+
+	apiRouter.Verb("GET", "/labels", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		adapter, err := internalVikunja.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.ListLabels()
+	})
+
+	apiRouter.Verb("POST", "/labels", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		name := strings.TrimSpace(args["name"])
+		if name == "" {
+			return nil, framework.InvalidFormatException("POST /labels requires --name")
+		}
+		color := strings.TrimSpace(args["color"])
+		if color == "" {
+			return nil, framework.InvalidFormatException("POST /labels requires --color")
+		}
+
+		adapter, err := internalVikunja.NewAdapter()
+		if err != nil {
+			return nil, err
+		}
+		return adapter.CreateLabel(name, color)
 	})
 
 	apiRouter.Verb("GET", "/projects/:projectId/tasks", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
@@ -141,7 +170,8 @@ func init() {
 	})
 
 	apiCmd.Flags().StringVar(&apiFlags.context, "context", "", "comment text")
-	apiCmd.Flags().StringVar(&apiFlags.name, "name", "", "project title")
+	apiCmd.Flags().StringVar(&apiFlags.name, "name", "", "project or label title")
+	apiCmd.Flags().StringVar(&apiFlags.color, "color", "", "label hex color")
 	apiCmd.Flags().SortFlags = false
 	rootCmd.AddCommand(apiCmd)
 }
