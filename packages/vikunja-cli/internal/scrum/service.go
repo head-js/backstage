@@ -3,6 +3,7 @@ package scrum
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -356,9 +357,243 @@ func ListTasks(workspaceID, filter string) ([]Task, error) {
 		if err := json.Unmarshal(item, &vt); err != nil {
 			return nil, err
 		}
-		tasks = append(tasks, translator.TranslateVikunjaTask2Task(&vt))
+		tasks = append(tasks, translator.TranslateVikunjaTask2Task(&vt, filter))
 	}
 	return tasks, nil
+}
+
+// ListVisions returns the TO VISION and IN VISION tasks from a saved filter,
+// grouped into blocking chains. Independent tasks are returned as one-item chains.
+func ListVisions(filter string) ([][]Task, error) {
+	filter = strings.TrimSpace(filter)
+	if filter == "" {
+		return nil, framework.InvalidFormatException("saved filter title is required")
+	}
+
+	adapter, err := internalVikunja.NewAdapter()
+	if err != nil {
+		return nil, err
+	}
+
+	projects, err := adapter.ListProjects()
+	if err != nil {
+		return nil, err
+	}
+	projectID, err := findSavedFilterProjectID(projects, filter)
+	if err != nil {
+		return nil, err
+	}
+	workspacePriorities, err := indexWorkspacePriorities(projects)
+	if err != nil {
+		return nil, err
+	}
+
+	views, err := adapter.ListProjectViews(projectID)
+	if err != nil {
+		return nil, err
+	}
+	kanbanViewID, err := findKanbanViewID(views)
+	if err != nil {
+		return nil, err
+	}
+
+	buckets, err := adapter.ListProjectViewBuckets(projectID, kanbanViewID)
+	if err != nil {
+		return nil, err
+	}
+	idByTitle, err := indexBucketsByTitle(buckets)
+	if err != nil {
+		return nil, err
+	}
+
+	selected := make(map[int64]internalVikunja.VikunjaTask)
+	selectedBuckets := make(map[int64]string)
+	selectedOrder := make([]int64, 0)
+	for _, status := range []string{"TO VISION", "IN VISION"} {
+		bucketID, ok := idByTitle[status]
+		if !ok {
+			return nil, fmt.Errorf("bucket %q not found in saved filter %q", status, filter)
+		}
+
+		tasksResp, err := adapter.ListProjectTasksByBucket(projectID, bucketID)
+		if err != nil {
+			return nil, err
+		}
+		var resp internalVikunja.VikunjaResp
+		if err := decode(tasksResp, &resp); err != nil {
+			return nil, err
+		}
+		for _, item := range resp.Items {
+			var task internalVikunja.VikunjaTask
+			if err := json.Unmarshal(item, &task); err != nil {
+				return nil, err
+			}
+			if task.Id <= 0 {
+				return nil, fmt.Errorf("task in bucket %q has invalid id %d", status, task.Id)
+			}
+			if _, exists := selected[task.Id]; !exists {
+				selectedOrder = append(selectedOrder, task.Id)
+			}
+			selected[task.Id] = task
+			selectedBuckets[task.Id] = status
+		}
+	}
+
+	return buildVisionChains(selected, selectedBuckets, selectedOrder, workspacePriorities)
+}
+
+func findSavedFilterProjectID(projects any, title string) (string, error) {
+	var resp internalVikunja.VikunjaResp
+	if err := decode(projects, &resp); err != nil {
+		return "", err
+	}
+
+	var found int64
+	for _, item := range resp.Items {
+		var project internalVikunja.VikunjaProject
+		if err := json.Unmarshal(item, &project); err != nil {
+			return "", err
+		}
+		if project.Id >= -1 || project.Title != title {
+			continue
+		}
+		if found != 0 {
+			return "", fmt.Errorf("multiple saved filters named %q found", title)
+		}
+		found = project.Id
+	}
+	if found == 0 {
+		return "", framework.NotFoundException(fmt.Sprintf("saved filter %q not found", title))
+	}
+	return strconv.FormatInt(found, 10), nil
+}
+
+func indexWorkspacePriorities(projects any) (map[int64]float64, error) {
+	var resp internalVikunja.VikunjaResp
+	if err := decode(projects, &resp); err != nil {
+		return nil, err
+	}
+
+	translator := NewScrumTranslator()
+	priorities := make(map[int64]float64)
+	for _, item := range resp.Items {
+		var project internalVikunja.VikunjaProject
+		if err := json.Unmarshal(item, &project); err != nil {
+			return nil, err
+		}
+		if project.Id < 0 {
+			continue
+		}
+		workspace := translator.TranslateVikunjaProject2Workspace(&project)
+		priorities[workspace.Id] = workspace.Priority
+	}
+	return priorities, nil
+}
+
+func buildVisionChains(tasks map[int64]internalVikunja.VikunjaTask, buckets map[int64]string, taskOrder []int64, workspacePriorities map[int64]float64) ([][]Task, error) {
+	predecessor := make(map[int64]int64, len(tasks))
+	successor := make(map[int64]int64, len(tasks))
+
+	addEdge := func(from, to int64) error {
+		if from == to {
+			return fmt.Errorf("task %d cannot block itself", from)
+		}
+		if _, ok := tasks[from]; !ok {
+			return nil
+		}
+		if _, ok := tasks[to]; !ok {
+			return nil
+		}
+		if existing, ok := successor[from]; ok && existing != to {
+			return fmt.Errorf("task %d blocks multiple vision tasks", from)
+		}
+		if existing, ok := predecessor[to]; ok && existing != from {
+			return fmt.Errorf("task %d is blocked by multiple vision tasks", to)
+		}
+		successor[from] = to
+		predecessor[to] = from
+		return nil
+	}
+
+	for taskID, task := range tasks {
+		for _, related := range task.RelatedTasks["blocking"] {
+			if err := addEdge(taskID, related.Id); err != nil {
+				return nil, err
+			}
+		}
+		for _, related := range task.RelatedTasks["blocked"] {
+			if err := addEdge(related.Id, taskID); err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	roots := make([]int64, 0, len(tasks))
+	ordered := make(map[int64]bool, len(taskOrder))
+	for _, taskID := range taskOrder {
+		if _, ok := tasks[taskID]; !ok {
+			return nil, fmt.Errorf("vision task order contains unknown task %d", taskID)
+		}
+		if ordered[taskID] {
+			return nil, fmt.Errorf("vision task order contains task %d more than once", taskID)
+		}
+		ordered[taskID] = true
+		if _, blocked := predecessor[taskID]; !blocked {
+			roots = append(roots, taskID)
+		}
+	}
+	if len(ordered) != len(tasks) {
+		return nil, fmt.Errorf("vision task order is incomplete")
+	}
+	workspaceOrder := make(map[int64]int, len(roots))
+	for _, root := range roots {
+		workspaceID := tasks[root].ProjectId
+		if _, ok := workspacePriorities[workspaceID]; !ok {
+			return nil, fmt.Errorf("workspace %d not found for vision task %d", workspaceID, root)
+		}
+		if _, ok := workspaceOrder[workspaceID]; !ok {
+			workspaceOrder[workspaceID] = len(workspaceOrder)
+		}
+	}
+	sort.SliceStable(roots, func(i, j int) bool {
+		left, right := tasks[roots[i]], tasks[roots[j]]
+		leftWorkspacePriority := workspacePriorities[left.ProjectId]
+		rightWorkspacePriority := workspacePriorities[right.ProjectId]
+		if leftWorkspacePriority != rightWorkspacePriority {
+			return leftWorkspacePriority > rightWorkspacePriority
+		}
+		if left.ProjectId != right.ProjectId {
+			return workspaceOrder[left.ProjectId] < workspaceOrder[right.ProjectId]
+		}
+		if left.Priority != right.Priority {
+			return left.Priority > right.Priority
+		}
+		return false
+	})
+
+	translator := NewScrumTranslator()
+	visited := make(map[int64]bool, len(tasks))
+	chains := make([][]Task, 0, len(roots))
+	for _, root := range roots {
+		chain := []Task{}
+		for current := root; current != 0; current = successor[current] {
+			if visited[current] {
+				return nil, fmt.Errorf("dependency cycle detected at task %d", current)
+			}
+			visited[current] = true
+			task := tasks[current]
+			bucket, ok := buckets[current]
+			if !ok || bucket == "" {
+				return nil, fmt.Errorf("bucket not found for vision task %d", current)
+			}
+			chain = append(chain, translator.TranslateVikunjaTask2Task(&task, bucket))
+		}
+		chains = append(chains, chain)
+	}
+	if len(visited) != len(tasks) {
+		return nil, fmt.Errorf("dependency cycle detected among vision tasks")
+	}
+	return chains, nil
 }
 
 // UpdateTaskStatus moves a task into the Scrum bucket named by status.

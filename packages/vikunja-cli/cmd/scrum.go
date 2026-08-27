@@ -23,6 +23,7 @@ var scrumCmd = &cobra.Command{
 Examples:
 	backstage-vikunja scrum POST /workspaces --name "简单短标题"
 	backstage-vikunja scrum GET /workspaces/42/tasks --filter "TO DO"
+	backstage-vikunja scrum GET /visions --filter "创造"
 	backstage-vikunja scrum PATCH /workspaces/42/tasks/123 --status "IN DO"`,
 	Args: cobra.ExactArgs(2),
 	RunE: func(cmd *cobra.Command, args []string) error {
@@ -70,6 +71,14 @@ func init() {
 		return scrum.ListTasks(params["workspaceId"], filter)
 	})
 
+	scrumRouter.Verb("GET", "/visions", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
+		filter := strings.TrimSpace(args["filter"])
+		if filter == "" {
+			return nil, framework.InvalidFormatException("GET /visions requires --filter")
+		}
+		return scrum.ListVisions(filter)
+	})
+
 	scrumRouter.Verb("PATCH", "/workspaces/:workspaceId/tasks/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		status := strings.TrimSpace(args["status"])
 		if status == "" {
@@ -79,7 +88,7 @@ func init() {
 	})
 
 	scrumCmd.Flags().StringVar(&scrumFlags.name, "name", "", "workspace title")
-	scrumCmd.Flags().StringVar(&scrumFlags.filter, "filter", "", "kanban bucket title, e.g. \"TO DO\"")
+	scrumCmd.Flags().StringVar(&scrumFlags.filter, "filter", "", "saved filter or kanban bucket title")
 	scrumCmd.Flags().StringVar(&scrumFlags.status, "status", "", "task status, e.g. \"IN DO\"")
 	scrumCmd.Flags().SortFlags = false
 	rootCmd.AddCommand(scrumCmd)

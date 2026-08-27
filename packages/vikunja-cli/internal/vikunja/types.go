@@ -14,12 +14,25 @@ type VikunjaResp struct {
 
 // VikunjaTask Vikunja 任务（对应 Vikunja API Task）
 type VikunjaTask struct {
-	ProjectId   int64          `json:"project_id"`
-	Id          int64          `json:"id"`
-	Title       string         `json:"title"`
-	Description string         `json:"description"`
-	Priority    int64          `json:"priority"`
-	Labels      []VikunjaLabel `json:"labels"`
+	ProjectId    int64                    `json:"project_id"`
+	Id           int64                    `json:"id"`
+	Title        string                   `json:"title"`
+	Description  string                   `json:"description"`
+	Priority     int64                    `json:"priority"`
+	Labels       []VikunjaLabel           `json:"labels"`
+	Bucket       *VikunjaBucket           `json:"bucket"`
+	Buckets      []VikunjaBucket          `json:"buckets"`
+	RelatedTasks map[string][]VikunjaTask `json:"related_tasks"`
+}
+
+// VikunjaBucket is a task's bucket association for one project view.
+type VikunjaBucket struct {
+	ID            int64   `json:"id"`
+	Title         string  `json:"title"`
+	ProjectViewID int64   `json:"project_view_id"`
+	Limit         int64   `json:"limit"`
+	Count         int64   `json:"count"`
+	Position      float64 `json:"position"`
 }
 
 // VikunjaProject Vikunja 项目（对应 Vikunja API Project）

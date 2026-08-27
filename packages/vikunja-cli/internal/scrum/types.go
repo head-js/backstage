@@ -13,6 +13,7 @@ type Task struct {
 	Id          int64  `json:"id"`
 	Name        string `json:"name"`
 	Context     string `json:"context"`
+	Bucket      string `json:"bucket"`
 	Priority    int64  `json:"priority"`
 	WorkspaceId int64  `json:"workspaceId"`
 }

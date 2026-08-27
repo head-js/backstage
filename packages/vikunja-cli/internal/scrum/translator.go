@@ -26,13 +26,14 @@ func (st *ScrumTranslator) TranslateVikunjaProject2Workspace(v *internalVikunja.
 	}
 }
 
-// TranslateVikunjaTask2Task 将 VikunjaTask 转换为 Task
-// Name 用 VikunjaTask.Title 填充，Id 用 VikunjaTask.Id 填充，Context 用 VikunjaTask.Description 填充
-func (st *ScrumTranslator) TranslateVikunjaTask2Task(v *internalVikunja.VikunjaTask) Task {
+// TranslateVikunjaTask2Task 将 VikunjaTask 转换为 Task。
+// bucket 是调用方已经确定的当前查询 bucket；不能从跨视图的 Buckets 数组猜测。
+func (st *ScrumTranslator) TranslateVikunjaTask2Task(v *internalVikunja.VikunjaTask, bucket string) Task {
 	return Task{
 		Id:          v.Id,
 		Name:        v.Title,
 		Context:     v.Description,
+		Bucket:      bucket,
 		Priority:    v.Priority,
 		WorkspaceId: v.ProjectId,
 	}

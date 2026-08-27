@@ -244,7 +244,9 @@ func (a *Adapter) GetTask(taskID string) (any, error) {
 		return nil, framework.InvalidFormatException("task ID is required")
 	}
 
-	return a.Do(context.Background(), http.MethodGet, "/tasks/"+url.PathEscape(taskID), nil)
+	query := url.Values{}
+	query.Set("expand", "buckets")
+	return a.Do(context.Background(), http.MethodGet, "/tasks/"+url.PathEscape(taskID)+"?"+query.Encode(), nil)
 }
 
 // ListTaskComments returns the comments on a task.
