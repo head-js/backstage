@@ -114,3 +114,5 @@ packages/hub/src-wails/frontend/dist/*
 packages/hub/src-wails/bin/
 packages/hub/src-wails/.task/
 *.syso
+
+.context/HBR/
