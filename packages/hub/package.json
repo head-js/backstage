@@ -1,0 +1,11 @@
+{
+  "name": "@head/backstage-hub",
+  "version": "0.4.1",
+  "description": "backstage hub (Go service)",
+  "private": true,
+  "scripts": {
+    "build": "./build-mac.sh"
+  },
+  "author": "shuaizhexu@gmail.com",
+  "license": "MIT"
+}
