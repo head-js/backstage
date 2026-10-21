@@ -1,0 +1,47 @@
+version: '3'
+
+info:
+  companyName: "backstage"
+  productName: "Backstage Hub"
+  productIdentifier: "com.lisitede.backstage.hub"
+  description: "Backstage hub"
+  copyright: "(c) 2026, backstage"
+  comments: "Backstage hub"
+  version: "0.1.0"
+
+dev_mode:
+  root_path: .
+  log_level: warn
+  debounce: 1000
+  ignore:
+    dir:
+      - .git
+      - node_modules
+      - bin
+      - frontend
+    file:
+      - .DS_Store
+      - .gitignore
+      - .gitkeep
+      - "*_test.go"
+    watched_extension:
+      - "*.go"
+      - "*.js"
+      - "*.ts"
+    git_ignore: true
+  executes:
+    - cmd: go tool wails3 task common:generate:bindings
+      type: blocking
+    - cmd: go tool wails3 build DEV=true
+      type: blocking
+    - cmd: go tool wails3 task common:dev:frontend
+      type: background
+      readiness:
+        http: "http://localhost:5173/"
+        timeout: "60s"
+        interval: "200ms"
+    - cmd: go tool wails3 task run
+      type: primary
+      exit_policy: shutdown
+
+fileAssociations:

@@ -108,3 +108,9 @@ typings/
 .expo/
 
 public/
+
+packages/hub/src-wails/frontend/dist/*
+!packages/hub/src-wails/frontend/dist/.gitkeep
+packages/hub/src-wails/bin/
+packages/hub/src-wails/.task/
+*.syso

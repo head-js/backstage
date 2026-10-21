@@ -1,0 +1,39 @@
+version: '3'
+
+tasks:
+  go:mod:tidy:
+    summary: Runs `go mod tidy`
+    internal: true
+    run: once
+    cmds:
+      - go mod tidy
+
+  generate:bindings:
+    summary: Generates Wails bindings for the frontend
+    internal: true
+    cmds:
+      - go tool wails3 generate bindings -d ../src/bindings
+
+  build:frontend:
+    summary: Builds the frontend into src-wails/frontend/dist
+    internal: true
+    status:
+      - test "{{.DEV}}" = "true"
+    deps:
+      - task: generate:bindings
+    dir: "{{.ROOT_DIR}}/.."
+    cmds:
+      - pnpm build:frontend
+
+  dev:frontend:
+    summary: Starts the Vite dev server (invoked by `wails3 dev`)
+    internal: true
+    dir: "{{.ROOT_DIR}}/.."
+    cmds:
+      - pnpm dev:frontend
+
+  update:build-assets:
+    summary: Updates the build assets
+    dir: build
+    cmds:
+      - go tool wails3 update build-assets -name "{{.APP_NAME}}" -binaryname "{{.APP_NAME}}" -config config.yml -dir .
