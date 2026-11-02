@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"slices"
 
-	"com.lisitede.backstage.gitea/framework"
+	"github.com/head-js/backstage/packages/framework"
 )
 
 // GiteaExtra Gitea 对象的附加信息（Repo / Milestone 通用）

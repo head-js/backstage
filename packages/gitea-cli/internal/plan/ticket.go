@@ -5,7 +5,7 @@ import (
 	"regexp"
 	"strings"
 
-	"com.lisitede.backstage.gitea/framework"
+	"github.com/head-js/backstage/packages/framework"
 )
 
 // ExtractTicketId 解析带有指定前缀的 ticket 标题，返回完整 ticket ID、ticket 名称、数字 ID 部分和错误。

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"code.gitea.io/sdk/gitea"
-	"com.lisitede.backstage.gitea/framework"
+	"github.com/head-js/backstage/packages/framework"
 )
 
 // Adapter Gitea API 适配器

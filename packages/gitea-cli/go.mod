@@ -1,11 +1,10 @@
 module com.lisitede.backstage.gitea
 
-go 1.23.0
-
-toolchain go1.23.4
+go 1.27.2
 
 require (
 	code.gitea.io/sdk/gitea v0.23.2
+	github.com/head-js/backstage/packages/framework v0.0.1
 	github.com/spf13/cobra v1.10.2
 	github.com/ucarion/urlpath v0.0.0-20200424170820-7ccc79b76bbb
 )

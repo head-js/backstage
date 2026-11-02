@@ -8,9 +8,9 @@ import (
 
 	"code.gitea.io/sdk/gitea"
 
-	"com.lisitede.backstage.gitea/framework"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"com.lisitede.backstage.gitea/internal/plan"
+	"github.com/head-js/backstage/packages/framework"
 )
 
 func HeadPlan(appId string, planId string) (string, error) {

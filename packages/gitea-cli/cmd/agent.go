@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"com.lisitede.backstage.gitea/framework"
 	internalAgent "com.lisitede.backstage.gitea/internal/agent"
+	"github.com/head-js/backstage/packages/framework"
 	"github.com/spf13/cobra"
 )
 

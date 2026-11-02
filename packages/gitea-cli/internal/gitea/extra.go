@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"code.gitea.io/sdk/gitea"
-	"com.lisitede.backstage.gitea/framework"
+	"github.com/head-js/backstage/packages/framework"
 )
 
 // extra.go 提供 Gitea SDK 的功能扩展

@@ -11,8 +11,8 @@ import (
 	"cmp"
 
 	"code.gitea.io/sdk/gitea"
-	"com.lisitede.backstage.gitea/framework"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
+	"github.com/head-js/backstage/packages/framework"
 )
 
 // TranslatePhaseId2MilestoneId 根据 phaseId (如 PHASE-01) 查找对应的 Gitea Milestone numeric ID
