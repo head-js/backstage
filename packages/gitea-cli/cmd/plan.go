@@ -141,10 +141,6 @@ func init() {
 		}, nil
 	})
 
-	planRouter.Verb("GET", "/:appId/:planId/:phaseId/:taskId", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
-		return plan.ShowTask(params["appId"], params["planId"], params["phaseId"], params["taskId"])
-	})
-
 	planRouter.Verb("MARKDOWN", "/:appId/:planId/current-task", func(method, pattern, pathname string, params, args map[string]string) (interface{}, error) {
 		return markdownCurrentTask(params["appId"], params["planId"])
 	})

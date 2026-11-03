@@ -19,7 +19,6 @@ import (
 const (
 	urlEnvironmentVariable   = "BACKSTAGE_VIKUNJA_URL"
 	tokenEnvironmentVariable = "BACKSTAGE_VIKUNJA_TOKEN"
-	apiVersionPath           = "/api/v2"
 )
 
 // Adapter provides business-neutral access to the Vikunja HTTP API.
@@ -31,7 +30,7 @@ type Adapter struct {
 
 // GetInfo returns the complete Vikunja instance information document.
 func (a *Adapter) GetInfo() (any, error) {
-	return a.Do(context.Background(), http.MethodGet, "/info", nil)
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/info", nil)
 }
 
 // CreateProject creates a new project with the given title and returns the created project.
@@ -42,12 +41,82 @@ func (a *Adapter) CreateProject(title string) (any, error) {
 	}
 
 	body := map[string]string{"title": title}
-	return a.Do(context.Background(), http.MethodPost, "/projects", body)
+	return a.Do(context.Background(), http.MethodPost, "/api/v2/projects", body)
 }
 
 // ListProjects returns the project collection visible to the authenticated user.
 func (a *Adapter) ListProjects() (any, error) {
-	return a.Do(context.Background(), http.MethodGet, "/projects", nil)
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/projects", nil)
+}
+
+// ListWorkspaces returns workspaces provided by the whiteboard plugin.
+func (a *Adapter) ListWorkspaces() (any, error) {
+	return a.Do(context.Background(), http.MethodGet, "/api/v1/plugins/whiteboard/workspaces", nil)
+}
+
+// ListLabels returns the labels visible to the authenticated user.
+func (a *Adapter) ListLabels() (any, error) {
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/labels", nil)
+}
+
+// SearchLabels returns labels matching the given query.
+func (a *Adapter) SearchLabels(query string) (any, error) {
+	values := url.Values{}
+	values.Set("q", strings.TrimSpace(query))
+	values.Set("per_page", "1000")
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/labels?"+values.Encode(), nil)
+}
+
+// CreateLabel creates a label with the given title and color.
+func (a *Adapter) CreateLabel(title, color string) (any, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("label title is required")
+	}
+	color = strings.TrimSpace(color)
+	if color == "" {
+		return nil, framework.InvalidFormatException("label color is required")
+	}
+
+	body := map[string]string{"title": title, "hex_color": color}
+	return a.Do(context.Background(), http.MethodPost, "/api/v2/labels", body)
+}
+
+// CreateSavedFilter creates a cross-project saved filter.
+func (a *Adapter) CreateSavedFilter(title, filter string) (any, error) {
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("saved filter title is required")
+	}
+	filter = strings.TrimSpace(filter)
+	if filter == "" {
+		return nil, framework.InvalidFormatException("saved filter expression is required")
+	}
+
+	body := map[string]any{
+		"title": title,
+		"filters": map[string]any{
+			"filter":               filter,
+			"filter_include_nulls": false,
+		},
+	}
+	return a.Do(context.Background(), http.MethodPost, "/api/v2/filters", body)
+}
+
+// UpdateProjectTitle updates only the title of an existing project.
+func (a *Adapter) UpdateProjectTitle(projectID, title string) (any, error) {
+	projectID, _, err := parseID("project", projectID)
+	if err != nil {
+		return nil, err
+	}
+	title = strings.TrimSpace(title)
+	if title == "" {
+		return nil, framework.InvalidFormatException("project title is required")
+	}
+
+	body := map[string]string{"title": title}
+	// Vikunja v2 declares JSON Merge Patch for partial project updates.
+	return a.do(context.Background(), http.MethodPatch, "/api/v2/projects/"+projectID, body, "application/merge-patch+json")
 }
 
 // ListProjectTasks returns the tasks belonging to a project.
@@ -57,7 +126,7 @@ func (a *Adapter) ListProjectTasks(projectID string) (any, error) {
 		return nil, framework.InvalidFormatException("project ID is required")
 	}
 
-	return a.Do(context.Background(), http.MethodGet, "/projects/"+url.PathEscape(projectID)+"/tasks", nil)
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/projects/"+url.PathEscape(projectID)+"/tasks", nil)
 }
 
 // ListProjectViews returns the views configured for a project.
@@ -67,7 +136,7 @@ func (a *Adapter) ListProjectViews(projectID string) (any, error) {
 		return nil, framework.InvalidFormatException("project ID is required")
 	}
 
-	return a.Do(context.Background(), http.MethodGet, "/projects/"+url.PathEscape(projectID)+"/views", nil)
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/projects/"+url.PathEscape(projectID)+"/views", nil)
 }
 
 // ListProjectViewBuckets returns the buckets configured for a project view.
@@ -82,13 +151,13 @@ func (a *Adapter) ListProjectViewBuckets(projectID, viewID string) (any, error) 
 		return nil, framework.InvalidFormatException("view ID is required")
 	}
 
-	path := "/projects/" + url.PathEscape(projectID) + "/views/" + url.PathEscape(viewID) + "/buckets"
+	path := "/api/v2/projects/" + url.PathEscape(projectID) + "/views/" + url.PathEscape(viewID) + "/buckets"
 	return a.Do(context.Background(), http.MethodGet, path, nil)
 }
 
 // CreateBucket creates a kanban bucket in a project view.
 func (a *Adapter) CreateBucket(projectID, viewID, title string, position float64) (any, error) {
-	projectID, _, err := parseID("project", projectID)
+	projectID, _, err := parseProjectID(projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,14 +170,14 @@ func (a *Adapter) CreateBucket(projectID, viewID, title string, position float64
 		return nil, framework.InvalidFormatException("bucket title is required")
 	}
 
-	path := "/projects/" + projectID + "/views/" + viewID + "/buckets"
+	path := "/api/v2/projects/" + projectID + "/views/" + viewID + "/buckets"
 	body := map[string]any{"title": title, "position": position}
 	return a.Do(context.Background(), http.MethodPost, path, body)
 }
 
 // UpdateBucket updates a kanban bucket's title and position.
 func (a *Adapter) UpdateBucket(projectID, viewID, bucketID, title string, position float64) (any, error) {
-	projectID, _, err := parseID("project", projectID)
+	projectID, _, err := parseProjectID(projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -125,14 +194,14 @@ func (a *Adapter) UpdateBucket(projectID, viewID, bucketID, title string, positi
 		return nil, framework.InvalidFormatException("bucket title is required")
 	}
 
-	path := "/projects/" + projectID + "/views/" + viewID + "/buckets/" + bucketID
+	path := "/api/v2/projects/" + projectID + "/views/" + viewID + "/buckets/" + bucketID
 	body := map[string]any{"title": title, "position": position}
 	return a.Do(context.Background(), http.MethodPut, path, body)
 }
 
 // MoveTaskToBucket places a task in a bucket of a project view.
 func (a *Adapter) MoveTaskToBucket(projectID, viewID, bucketID, taskID string) (any, error) {
-	projectID, _, err := parseID("project", projectID)
+	projectID, _, err := parseProjectID(projectID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +218,7 @@ func (a *Adapter) MoveTaskToBucket(projectID, viewID, bucketID, taskID string) (
 		return nil, err
 	}
 
-	path := "/projects/" + projectID + "/views/" + viewID + "/buckets/" + bucketID + "/tasks"
+	path := "/api/v2/projects/" + projectID + "/views/" + viewID + "/buckets/" + bucketID + "/tasks"
 	body := map[string]int64{"task_id": taskIDValue}
 	return a.Do(context.Background(), http.MethodPut, path, body)
 }
@@ -163,6 +232,15 @@ func parseID(name, value string) (string, int64, error) {
 	return value, parsed, nil
 }
 
+func parseProjectID(value string) (string, int64, error) {
+	value = strings.TrimSpace(value)
+	parsed, err := strconv.ParseInt(value, 10, 64)
+	if err != nil || parsed == 0 {
+		return "", 0, framework.InvalidFormatException("project ID must be a non-zero integer")
+	}
+	return value, parsed, nil
+}
+
 // GetTask returns a task by its globally unique ID.
 func (a *Adapter) GetTask(taskID string) (any, error) {
 	taskID = strings.TrimSpace(taskID)
@@ -170,7 +248,9 @@ func (a *Adapter) GetTask(taskID string) (any, error) {
 		return nil, framework.InvalidFormatException("task ID is required")
 	}
 
-	return a.Do(context.Background(), http.MethodGet, "/tasks/"+url.PathEscape(taskID), nil)
+	query := url.Values{}
+	query.Set("expand", "buckets")
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/tasks/"+url.PathEscape(taskID)+"?"+query.Encode(), nil)
 }
 
 // ListTaskComments returns the comments on a task.
@@ -180,7 +260,7 @@ func (a *Adapter) ListTaskComments(taskID string) (any, error) {
 		return nil, err
 	}
 
-	return a.Do(context.Background(), http.MethodGet, "/tasks/"+taskID+"/comments", nil)
+	return a.Do(context.Background(), http.MethodGet, "/api/v2/tasks/"+taskID+"/comments", nil)
 }
 
 // CreateTaskComment adds a comment to a task.
@@ -196,7 +276,7 @@ func (a *Adapter) CreateTaskComment(taskID, comment string) (any, error) {
 	}
 
 	body := map[string]string{"comment": comment}
-	return a.Do(context.Background(), http.MethodPost, "/tasks/"+taskID+"/comments", body)
+	return a.Do(context.Background(), http.MethodPost, "/api/v2/tasks/"+taskID+"/comments", body)
 }
 
 // NewAdapter creates an adapter from environment configuration.
@@ -218,19 +298,23 @@ func NewAdapter() (*Adapter, error) {
 	}
 
 	return &Adapter{
-		baseURL: strings.TrimRight(baseURL, "/") + apiVersionPath,
+		baseURL: strings.TrimRight(baseURL, "/"),
 		token:   strings.TrimSpace(os.Getenv(tokenEnvironmentVariable)),
 		client:  &http.Client{Timeout: 30 * time.Second},
 	}, nil
 }
 
-// Do sends a JSON request to a path relative to the Vikunja v2 API root.
+// Do sends a JSON request to the full path provided by the caller.
 func (a *Adapter) Do(ctx context.Context, method, path string, body any) (any, error) {
+	return a.do(ctx, method, path, body, "application/json")
+}
+
+func (a *Adapter) do(ctx context.Context, method, path string, body any, contentType string) (any, error) {
 	if strings.TrimSpace(method) == "" {
 		return nil, framework.InvalidFormatException("HTTP method is required")
 	}
 	if !strings.HasPrefix(path, "/") {
-		return nil, framework.InvalidFormatException("API path must start with '/': " + path)
+		return nil, framework.InvalidFormatException("full API path must start with '/': " + path)
 	}
 
 	var requestBody io.Reader
@@ -248,7 +332,7 @@ func (a *Adapter) Do(ctx context.Context, method, path string, body any) (any, e
 	}
 	request.Header.Set("Accept", "application/json")
 	if body != nil {
-		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set("Content-Type", contentType)
 	}
 	if a.token != "" {
 		request.Header.Set("Authorization", "Bearer "+a.token)
