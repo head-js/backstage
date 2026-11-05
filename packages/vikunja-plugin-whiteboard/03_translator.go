@@ -46,6 +46,7 @@ func visitNodeFromDescription(project VikunjaProject, task VikunjaTask, descript
 	delete(description, "Session")
 	return &VisitNode{
 		ID:          visitNodeID(project.Title, task.Index),
+		Workspace:   project.Title,
 		Title:       task.Title,
 		Progress:    translatorfmt.Sprintf("%.0f%%", task.PercentDone*100),
 		Session:     sessions,
