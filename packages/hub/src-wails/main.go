@@ -49,7 +49,10 @@ func main() {
 }
 
 func run() error {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
 
 	srv, err := server.Start(cfg)
 	if err != nil {

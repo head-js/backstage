@@ -6,6 +6,7 @@ require (
 	github.com/danielgtaylor/huma/v2 v2.36.0
 	github.com/mark3labs/mcp-go v1.5.0
 	github.com/wailsapp/wails/v3 v3.0.0-beta.32
+	github.com/zalando/go-keyring v0.2.6
 )
 
 require (
@@ -132,7 +133,6 @@ require (
 	github.com/yuin/goldmark v1.7.17 // indirect
 	github.com/yuin/goldmark-emoji v1.0.6 // indirect
 	github.com/yusufpapurcu/wmi v1.2.4 // indirect
-	github.com/zalando/go-keyring v0.2.6 // indirect
 	github.com/zeebo/xxh3 v1.1.0 // indirect
 	gitlab.com/digitalxero/go-conventional-commit v1.0.7 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect

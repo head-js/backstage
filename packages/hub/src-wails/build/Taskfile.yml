@@ -1,6 +1,17 @@
 version: '3'
 
 tasks:
+  generate:icons:
+    summary: Generates Windows `.ico` and Mac `.icns` from `appicon.png`
+    dir: build
+    sources:
+      - appicon.png
+    generates:
+      - darwin/icons.icns
+      - windows/icon.ico
+    cmds:
+      - go tool wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+
   go:mod:tidy:
     summary: Runs `go mod tidy`
     internal: true
