@@ -51,6 +51,7 @@ type VikunjaTaskList struct {
 
 type VisitNode struct {
 	ID          string              `json:"Id"`
+	Workspace   string              `json:"Workspace"`
 	Title       string              `json:"Title"`
 	Progress    string              `json:"Progress"`
 	Session     []string            `json:"Session"`
