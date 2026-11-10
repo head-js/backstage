@@ -20,7 +20,7 @@ import (
 	"text/template"
 	"time"
 
-	"code.gitea.io/sdk/gitea"
+	"gitea.dev/sdk"
 )
 
 // PlanTranslator 用于将 Gitea 对象转换为 Plan 领域模型

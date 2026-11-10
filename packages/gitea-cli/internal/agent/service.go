@@ -6,7 +6,7 @@ import (
 	"cmp"
 	"slices"
 
-	"code.gitea.io/sdk/gitea"
+	"gitea.dev/sdk"
 
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 	"com.lisitede.backstage.gitea/internal/plan"

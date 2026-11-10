@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strconv"
 
-	"code.gitea.io/sdk/gitea"
+	"gitea.dev/sdk"
 
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
 )

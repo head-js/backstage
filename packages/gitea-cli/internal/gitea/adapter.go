@@ -1,17 +1,28 @@
 package gitea
 
 import (
+	"context"
 	"encoding/base64"
 	"fmt"
 	"os"
 
-	"code.gitea.io/sdk/gitea"
+	"gitea.dev/sdk"
 	"github.com/head-js/backstage/packages/framework"
 )
 
 // Adapter Gitea API 适配器
 type Adapter struct {
 	client *gitea.Client
+}
+
+// GiteaVersion 包含服务端版本和当前 Token 的权限范围。
+type GiteaVersion struct {
+	Version string       `json:"version"`
+	Token   *TokenScopes `json:"token"`
+}
+
+type TokenScopes struct {
+	Scopes []gitea.AccessTokenScope `json:"scopes"`
 }
 
 // NewAdapter 创建新的 Gitea 适配器
@@ -31,33 +42,46 @@ func NewAdapter() (*Adapter, error) {
 	return &Adapter{client: client}, nil
 }
 
-// GetGiteaVersion 获取 Gitea 版本
-func (a *Adapter) GetGiteaVersion() (string, error) {
-	version, _, err := a.client.ServerVersion()
-	return version, err
+// GetGiteaVersion 获取 Gitea 版本和当前 Token 的权限范围。
+func (a *Adapter) GetGiteaVersion() (*GiteaVersion, error) {
+	ctx := context.Background()
+	version, _, err := a.client.Meta.ServerVersion(ctx)
+	if err != nil {
+		return nil, err
+	}
+	token, _, err := a.client.Users.GetCurrentAccessToken(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("get current token: %w", err)
+	}
+	return &GiteaVersion{
+		Version: version,
+		Token: &TokenScopes{
+			Scopes: append([]gitea.AccessTokenScope{}, token.Scopes...),
+		},
+	}, nil
 }
 
 // ListRepos 列出所有仓库 (GET /repos)
 func (a *Adapter) ListRepos() ([]*gitea.Repository, error) {
-	repos, _, err := a.client.SearchRepos(gitea.SearchRepoOptions{})
+	repos, _, err := a.client.Repositories.SearchRepos(context.Background(), gitea.SearchRepoOptions{})
 	return repos, err
 }
 
 // ListRepoOfOwner 列出用户的所有仓库
 func (a *Adapter) ListRepoOfOwner(owner string) ([]*gitea.Repository, error) {
-	repos, _, err := a.client.ListUserRepos(owner, gitea.ListReposOptions{})
+	repos, _, err := a.client.Repositories.ListUserRepos(context.Background(), owner, gitea.ListReposOptions{})
 	return repos, err
 }
 
 // GetRepo 获取仓库详情 (GET /repos/:username/:repoName)
 func (a *Adapter) GetRepo(owner, repo string) (*gitea.Repository, error) {
-	result, _, err := a.client.GetRepo(owner, repo)
+	result, _, err := a.client.Repositories.GetRepo(context.Background(), owner, repo)
 	return result, err
 }
 
 // ListIssueOfRepo 列出仓库 Issue 列表
 func (a *Adapter) ListIssueOfRepo(owner, repoName string) ([]*gitea.Issue, error) {
-	issues, _, err := a.client.ListRepoIssues(owner, repoName, gitea.ListIssueOption{})
+	issues, _, err := a.client.Issues.ListRepoIssues(context.Background(), owner, repoName, gitea.ListIssueOption{})
 	return issues, err
 }
 
@@ -70,7 +94,7 @@ func (a *Adapter) SearchIssueOfRepo(owner, repoName string, searchOptions gitea.
 	opts := searchOptions
 	opts.PageSize = 100
 
-	issues, _, err := a.client.ListRepoIssues(owner, repoName, opts)
+	issues, _, err := a.client.Issues.ListRepoIssues(context.Background(), owner, repoName, opts)
 	return issues, err
 }
 
@@ -78,7 +102,7 @@ func (a *Adapter) GetIssueOfRepo(owner, repoName, issueNo string) (*gitea.Issue,
 	var issueNoInt int64
 	fmt.Sscanf(issueNo, "%d", &issueNoInt)
 
-	issue, _, err := a.client.GetIssue(owner, repoName, issueNoInt)
+	issue, _, err := a.client.Issues.GetIssue(context.Background(), owner, repoName, issueNoInt)
 	return issue, err
 }
 
@@ -87,7 +111,7 @@ func (a *Adapter) DeleteIssueOfRepo(owner, repo, issueNo string) (interface{}, e
 	var issueNoInt int64
 	fmt.Sscanf(issueNo, "%d", &issueNoInt)
 
-	_, err := a.client.DeleteIssue(owner, repo, issueNoInt)
+	_, err := a.client.Issues.DeleteIssue(context.Background(), owner, repo, issueNoInt)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +126,7 @@ func (a *Adapter) ListCommentOfIssue(owner, repo, issueNo string) ([]*gitea.Comm
 	var issueNoInt int64
 	fmt.Sscanf(issueNo, "%d", &issueNoInt)
 
-	comments, _, err := a.client.ListIssueComments(owner, repo, issueNoInt, gitea.ListIssueCommentOptions{})
+	comments, _, err := a.client.Issues.ListIssueComments(context.Background(), owner, repo, issueNoInt, gitea.ListIssueCommentOptions{})
 	return comments, err
 }
 
@@ -111,7 +135,7 @@ func (a *Adapter) CreateComment(owner, repo, issueNo, body string) (*gitea.Comme
 	var issueNoInt int64
 	fmt.Sscanf(issueNo, "%d", &issueNoInt)
 
-	comment, _, err := a.client.CreateIssueComment(owner, repo, issueNoInt, gitea.CreateIssueCommentOption{
+	comment, _, err := a.client.Issues.CreateIssueComment(context.Background(), owner, repo, issueNoInt, gitea.CreateIssueCommentOption{
 		Body: body,
 	})
 	return comment, err
@@ -119,13 +143,13 @@ func (a *Adapter) CreateComment(owner, repo, issueNo, body string) (*gitea.Comme
 
 // ListMilestoneOfRepo 列出仓库 Milestone 列表
 func (a *Adapter) ListMilestoneOfRepo(owner, repo string) ([]*gitea.Milestone, error) {
-	milestones, _, err := a.client.ListRepoMilestones(owner, repo, gitea.ListMilestoneOption{})
+	milestones, _, err := a.client.Repositories.ListMilestones(context.Background(), owner, repo, gitea.ListMilestoneOption{})
 	return milestones, err
 }
 
 // TransferRepo 转移仓库
 func (a *Adapter) TransferRepo(oldOwner, repoName, newOwner string) (*gitea.Repository, error) {
-	repo, _, err := a.client.TransferRepo(oldOwner, repoName, gitea.TransferRepoOption{
+	repo, _, err := a.client.Repositories.TransferRepo(context.Background(), oldOwner, repoName, gitea.TransferRepoOption{
 		NewOwner: newOwner,
 	})
 	return repo, err
@@ -133,7 +157,7 @@ func (a *Adapter) TransferRepo(oldOwner, repoName, newOwner string) (*gitea.Repo
 
 // CreateMilestone 创建里程碑
 func (a *Adapter) CreateMilestone(owner, repo, title string) (*gitea.Milestone, error) {
-	milestone, _, err := a.client.CreateMilestone(owner, repo, gitea.CreateMilestoneOption{
+	milestone, _, err := a.client.Repositories.CreateMilestone(context.Background(), owner, repo, gitea.CreateMilestoneOption{
 		Title: title,
 	})
 	return milestone, err
@@ -141,13 +165,13 @@ func (a *Adapter) CreateMilestone(owner, repo, title string) (*gitea.Milestone, 
 
 // ListLabelOfRepo 列出仓库 Label 列表 (GET /repos/:owner/:repoName/labels)
 func (a *Adapter) ListLabelOfRepo(owner, repo string) ([]*gitea.Label, error) {
-	labels, _, err := a.client.ListRepoLabels(owner, repo, gitea.ListLabelsOptions{})
+	labels, _, err := a.client.Repositories.ListRepoLabels(context.Background(), owner, repo, gitea.ListLabelsOptions{})
 	return labels, err
 }
 
 // CreateLabel 创建 Label (POST /repos/:owner/:repoName/labels)
 func (a *Adapter) CreateLabel(owner, repo, name, color string) (*gitea.Label, error) {
-	label, _, err := a.client.CreateLabel(owner, repo, gitea.CreateLabelOption{
+	label, _, err := a.client.Repositories.CreateLabel(context.Background(), owner, repo, gitea.CreateLabelOption{
 		Name:      name,
 		Color:     color,
 		Exclusive: true,
@@ -157,10 +181,10 @@ func (a *Adapter) CreateLabel(owner, repo, name, color string) (*gitea.Label, er
 
 // CreateIssue 创建 Issue
 // milestoneId: Milestone 的数字 ID（可选，传入空字符串表示不关联）
-func (a *Adapter) CreateIssue(owner, repo, title string, context string, milestoneId string) (*gitea.Issue, error) {
+func (a *Adapter) CreateIssue(owner, repo, title string, body string, milestoneId string) (*gitea.Issue, error) {
 	opts := gitea.CreateIssueOption{
 		Title: title,
-		Body:  context,
+		Body:  body,
 	}
 	if milestoneId != "" {
 		var id int64
@@ -169,7 +193,7 @@ func (a *Adapter) CreateIssue(owner, repo, title string, context string, milesto
 			opts.Milestone = id
 		}
 	}
-	issue, _, err := a.client.CreateIssue(owner, repo, opts)
+	issue, _, err := a.client.Issues.CreateIssue(context.Background(), owner, repo, opts)
 	return issue, err
 }
 
@@ -181,7 +205,7 @@ func (a *Adapter) AddLabelToIssue(owner, repo, issueId, labelId string) ([]*gite
 	fmt.Sscanf(issueId, "%d", &issueIdInt)
 	fmt.Sscanf(labelId, "%d", &labelIdInt)
 
-	labels, _, err := a.client.AddIssueLabels(owner, repo, issueIdInt, gitea.IssueLabelsOption{
+	labels, _, err := a.client.Issues.AddIssueLabels(context.Background(), owner, repo, issueIdInt, gitea.IssueLabelsOption{
 		Labels: []int64{labelIdInt},
 	})
 	return labels, err
@@ -195,7 +219,7 @@ func (a *Adapter) ClearLabelFromIssue(owner, repo, issueId, labelId string) erro
 	fmt.Sscanf(issueId, "%d", &issueIdInt)
 	fmt.Sscanf(labelId, "%d", &labelIdInt)
 
-	_, err := a.client.ClearIssueLabels(owner, repo, issueIdInt)
+	_, err := a.client.Issues.ClearIssueLabels(context.Background(), owner, repo, issueIdInt)
 	return err
 }
 
@@ -204,7 +228,7 @@ func (a *Adapter) ClearLabelFromIssue(owner, repo, issueId, labelId string) erro
 // repo: 仓库名称
 // labelName: Label 名称
 func (a *Adapter) GetLabelByName(owner, repo, labelName string) (*gitea.Label, error) {
-	labels, _, err := a.client.ListRepoLabels(owner, repo, gitea.ListLabelsOptions{})
+	labels, _, err := a.client.Repositories.ListRepoLabels(context.Background(), owner, repo, gitea.ListLabelsOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -223,7 +247,7 @@ func (a *Adapter) ReplaceIssueLabels(owner, repo, issueNo string, labelIds []int
 	var issueNoInt int64
 	fmt.Sscanf(issueNo, "%d", &issueNoInt)
 
-	labels, _, err := a.client.ReplaceIssueLabels(owner, repo, issueNoInt, gitea.IssueLabelsOption{
+	labels, _, err := a.client.Issues.ReplaceIssueLabels(context.Background(), owner, repo, issueNoInt, gitea.IssueLabelsOption{
 		Labels: labelIds,
 	})
 	return labels, err
@@ -231,19 +255,19 @@ func (a *Adapter) ReplaceIssueLabels(owner, repo, issueNo string, labelIds []int
 
 // ListWikiOfRepo 列出仓库 Wiki 列表
 func (a *Adapter) ListWikiOfRepo(owner, repo string) ([]*gitea.WikiPageMetaData, error) {
-	wikis, _, err := a.client.ListWikiPages(owner, repo, gitea.ListWikiPagesOptions{})
+	wikis, _, err := a.client.Wiki.ListPages(context.Background(), owner, repo, gitea.ListWikiPagesOptions{})
 	return wikis, err
 }
 
 // GetWikiOfRepo 获取仓库指定 Wiki 页面（返回 SDK 原始结构 ContentBase64 是 base64 编码）
 func (a *Adapter) GetWikiOfRepo(owner, repo, wikiName string) (*gitea.WikiPage, error) {
-	wiki, _, err := a.client.GetWikiPage(owner, repo, wikiName)
+	wiki, _, err := a.client.Wiki.GetPage(context.Background(), owner, repo, wikiName)
 	return wiki, err
 }
 
 // GetWikiContent 获取仓库指定 Wiki 页面的纯文本内容（自动解码 base64）
 func (a *Adapter) GetWikiContent(owner, repo, wikiName string) (string, error) {
-	wiki, _, err := a.client.GetWikiPage(owner, repo, wikiName)
+	wiki, _, err := a.client.Wiki.GetPage(context.Background(), owner, repo, wikiName)
 	if err != nil {
 		return "", err
 	}
@@ -257,7 +281,7 @@ func (a *Adapter) GetWikiContent(owner, repo, wikiName string) (string, error) {
 // UpdateWikiOfRepo 更新仓库指定 Wiki 页面
 func (a *Adapter) UpdateWikiOfRepo(owner, repo, wikiName, content string) (*gitea.WikiPage, error) {
 	encodedContent := base64.StdEncoding.EncodeToString([]byte(content))
-	wiki, _, err := a.client.EditWikiPage(owner, repo, wikiName, gitea.CreateWikiPageOptions{
+	wiki, _, err := a.client.Wiki.EditPage(context.Background(), owner, repo, wikiName, gitea.CreateWikiPageOptions{
 		Title:         wikiName,
 		ContentBase64: encodedContent,
 	})

@@ -10,8 +10,8 @@ import (
 
 	"cmp"
 
-	"code.gitea.io/sdk/gitea"
 	internalGitea "com.lisitede.backstage.gitea/internal/gitea"
+	"gitea.dev/sdk"
 	"github.com/head-js/backstage/packages/framework"
 )
 

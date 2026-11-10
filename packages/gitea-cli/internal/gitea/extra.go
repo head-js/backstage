@@ -1,10 +1,11 @@
 package gitea
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
-	"code.gitea.io/sdk/gitea"
+	"gitea.dev/sdk"
 	"github.com/head-js/backstage/packages/framework"
 )
 
@@ -18,7 +19,7 @@ import (
 // description: 仓库描述
 func (a *Adapter) CreateRepo(owner string, repoName string, description string) (*gitea.Repository, error) {
 	// 先用系统默认 owner 创建仓库
-	_, _, err := a.client.CreateRepo(gitea.CreateRepoOption{
+	_, _, err := a.client.Repositories.CreateRepo(context.Background(), gitea.CreateRepoOption{
 		Name:        repoName,
 		Description: description,
 		Private:     false,
