@@ -15,40 +15,36 @@ const workspacePriorityBase = 200 * 65536
 
 func projectToWorkspace(project VikunjaProject) Workspace {
 	return Workspace{
-		ID:          project.ID,
-		Title:       project.Title,
+		Id:          project.Id,
+		Name:        project.Title,
 		Description: project.Description,
 		Priority:    workspacePriorityBase - project.Position,
 	}
 }
 
-func visitNodeID(projectTitle string, taskIndex int64) string {
+// visitNodeId is the assignment formula for new VisitNode Id. It is used only
+// when persisting tasks.ext_iid; reads always use the stored value.
+func visitNodeId(projectTitle string, taskIndex int64) string {
 	return translatorstrings.ToUpper(projectTitle) + "-" + translatorstrconv.FormatInt(taskIndex, 10)
 }
 
-func visitEdgeFromIDs(sourceProjectTitle string, sourceTaskIndex int64, targetProjectTitle string, targetTaskIndex int64) VisitEdge {
-	return VisitEdge{
-		Source: visitNodeID(sourceProjectTitle, sourceTaskIndex),
-		Target: visitNodeID(targetProjectTitle, targetTaskIndex),
-	}
-}
-
-func taskToVisitNode(project VikunjaProject, task VikunjaTask) (*VisitNode, error) {
+func taskToVisitNode(project VikunjaProject, task VikunjaTask, extIid, extSession string) (*VisitNode, error) {
 	description, err := translateTaskDescription(task.Description)
 	if err != nil {
 		return nil, err
 	}
-	return visitNodeFromDescription(project, task, description), nil
+	return visitNodeFromDescription(project, task, description, extIid, extSession), nil
 }
 
-func visitNodeFromDescription(project VikunjaProject, task VikunjaTask, description map[string][]string) *VisitNode {
-	sessions := normalizeSessions(description["Session"])
-	delete(description, "Session")
+// Session is sourced from tasks.ext_session only. The description passes
+// through untouched; any "Session" section inside it is ordinary data.
+func visitNodeFromDescription(project VikunjaProject, task VikunjaTask, description map[string][]string, extIid, extSession string) *VisitNode {
 	return &VisitNode{
-		ID:          visitNodeID(project.Title, task.Index),
+		Id:          extIid,
+		Workspace:   project.Title,
+		Session:     extSession,
 		Title:       task.Title,
 		Progress:    translatorfmt.Sprintf("%.0f%%", task.PercentDone*100),
-		Session:     sessions,
 		Description: description,
 	}
 }
@@ -108,25 +104,8 @@ func formatTaskDescription(description map[string][]string) (string, error) {
 	return translatorstrings.Join(blocks, "\n\n"+taskDescriptionSeparator+"\n\n"), nil
 }
 
-func normalizeSessions(sessions []string) []string {
-	result := make([]string, 0, len(sessions))
-	for _, session := range sessions {
-		session = translatorstrings.TrimSpace(session)
-		if session != "" {
-			result = append(result, session)
-		}
-	}
-	return result
-}
-
-// Session is reserved for the top-level field in the whiteboard API.
-func formatVisitNodeDescription(description map[string][]string, sessions []string) (string, error) {
-	sections := make(map[string][]string, len(description)+1)
-	for key, values := range description {
-		if translatorstrings.TrimSpace(key) != "Session" {
-			sections[key] = values
-		}
-	}
-	sections["Session"] = normalizeSessions(sessions)
-	return formatTaskDescription(sections)
+// formatVisitNodeDescription serializes the description sections as given.
+// Session is not part of the description; it lives in tasks.ext_session.
+func formatVisitNodeDescription(description map[string][]string) (string, error) {
+	return formatTaskDescription(description)
 }

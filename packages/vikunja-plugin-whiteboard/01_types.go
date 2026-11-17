@@ -3,14 +3,14 @@
 package main
 
 type Workspace struct {
-	ID          int64   `json:"id"`
-	Title       string  `json:"title"`
-	Description string  `json:"description"`
-	Priority    float64 `json:"priority"`
+	Id          int64   `json:"Id"`
+	Name        string  `json:"Name"`
+	Description string  `json:"Description"`
+	Priority    float64 `json:"Priority"`
 }
 
 type VikunjaProject struct {
-	ID          int64   `json:"id"`
+	Id          int64   `json:"id"`
 	Title       string  `json:"title"`
 	Description string  `json:"description"`
 	Position    float64 `json:"position"`
@@ -21,8 +21,8 @@ type VikunjaProjectList struct {
 }
 
 type VikunjaTask struct {
-	ID           int64                `json:"id"`
-	ProjectID    int64                `json:"project_id"`
+	Id           int64                `json:"id"`
+	ProjectId    int64                `json:"project_id"`
 	Index        int64                `json:"index"`
 	Title        string               `json:"title"`
 	Description  string               `json:"description"`
@@ -35,11 +35,12 @@ type VikunjaTaskRelations struct {
 }
 
 type VikunjaTaskReference struct {
-	ProjectID int64 `json:"project_id"`
+	Id        int64 `json:"id"`
+	ProjectId int64 `json:"project_id"`
 	Index     int64 `json:"index"`
 }
 
-// VisitEdge represents source blocking target using public VisitNode IDs.
+// VisitEdge represents source blocking target using public VisitNode Id.
 type VisitEdge struct {
 	Source string `json:"Source"`
 	Target string `json:"Target"`
@@ -50,16 +51,27 @@ type VikunjaTaskList struct {
 }
 
 type VisitNode struct {
-	ID          string              `json:"Id"`
+	Id          string              `json:"Id"`
+	Workspace   string              `json:"Workspace"`
+	Session     string              `json:"Session"`
 	Title       string              `json:"Title"`
-	Progress    string              `json:"Progress"`
-	Session     []string            `json:"Session"`
 	Description map[string][]string `json:"Description"`
+	Progress    string              `json:"Progress"`
 }
 
 type VisitNodeCreateRequest struct {
 	Workspace   string              `json:"Workspace"`
 	Title       string              `json:"Title"`
-	Session     []string            `json:"Session"`
+	Session     string              `json:"Session"`
 	Description map[string][]string `json:"Description"`
+}
+
+// VisitNodeUpdateRequest carries optional fields. A nil pointer means the
+// caller did not send the field and it must not be touched; a non-nil zero
+// value (Progress 0, Session "") is an explicit update. Progress is a
+// percentage integer (0-100).
+type VisitNodeUpdateRequest struct {
+	Id       string  `json:"Id"`
+	Progress *int64  `json:"Progress"`
+	Session  *string `json:"Session"`
 }

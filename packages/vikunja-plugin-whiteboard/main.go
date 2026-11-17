@@ -18,7 +18,7 @@ func (p *WhiteboardPlugin) Name() string {
 }
 
 func (p *WhiteboardPlugin) Version() string {
-	return "2.7.1.0"
+	return "2.7.1.1"
 }
 
 func (p *WhiteboardPlugin) Init() error {

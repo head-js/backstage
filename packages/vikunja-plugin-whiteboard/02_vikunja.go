@@ -101,17 +101,17 @@ func (a *vikunjaHTTPClient) listProjects(ctx vikunjacontext.Context, authorizati
 	return a.do(ctx, http.MethodGet, "/api/v2/projects?per_page=50", nil, authorization)
 }
 
-func (a *vikunjaHTTPClient) getTaskByIndex(ctx vikunjacontext.Context, projectID, index int64, authorization string) ([]byte, error) {
-	path := vikunjafmt.Sprintf("/api/v2/projects/%d/tasks/by-index/%d?format=markdown", projectID, index)
+func (a *vikunjaHTTPClient) getTask(ctx vikunjacontext.Context, taskId int64, authorization string) ([]byte, error) {
+	path := vikunjafmt.Sprintf("/api/v2/tasks/%d?format=markdown", taskId)
 	return a.do(ctx, http.MethodGet, path, nil, authorization)
 }
 
-func (a *vikunjaHTTPClient) listProjectTasks(ctx vikunjacontext.Context, projectID int64, authorization string) ([]byte, error) {
-	path := vikunjafmt.Sprintf("/api/v2/projects/%d/tasks?per_page=50&format=markdown", projectID)
+func (a *vikunjaHTTPClient) listProjectTasks(ctx vikunjacontext.Context, projectId int64, authorization string) ([]byte, error) {
+	path := vikunjafmt.Sprintf("/api/v2/projects/%d/tasks?per_page=50&format=markdown", projectId)
 	return a.do(ctx, http.MethodGet, path, nil, authorization)
 }
 
-func (a *vikunjaHTTPClient) createTask(ctx vikunjacontext.Context, projectID int64, title, description, authorization string) ([]byte, error) {
+func (a *vikunjaHTTPClient) createTask(ctx vikunjacontext.Context, projectId int64, title, description, authorization string) ([]byte, error) {
 	body, err := vikunjajson.Marshal(map[string]string{
 		"title":       title,
 		"description": description,
@@ -119,31 +119,48 @@ func (a *vikunjaHTTPClient) createTask(ctx vikunjacontext.Context, projectID int
 	if err != nil {
 		return nil, err
 	}
-	path := vikunjafmt.Sprintf("/api/v2/projects/%d/tasks?format=markdown", projectID)
+	path := vikunjafmt.Sprintf("/api/v2/projects/%d/tasks?format=markdown", projectId)
 	return a.do(ctx, http.MethodPost, path, vikunjabytes.NewReader(body), authorization)
 }
 
-func (a *vikunjaHTTPClient) deleteTask(ctx vikunjacontext.Context, taskID int64, authorization string) error {
-	path := vikunjafmt.Sprintf("/api/v2/tasks/%d", taskID)
+// updateTaskPercentDone writes only percent_done through the v2 bulk endpoint.
+// The single-task update (POST /tasks/{id}) rewrites every column, so it would
+// blank fields this plugin does not manage; the bulk endpoint with an explicit
+// fields list is the true partial update.
+func (a *vikunjaHTTPClient) updateTaskPercentDone(ctx vikunjacontext.Context, taskId int64, percentDone float64, authorization string) error {
+	body, err := vikunjajson.Marshal(map[string]interface{}{
+		"task_ids": []int64{taskId},
+		"fields":   []string{"percent_done"},
+		"values":   map[string]float64{"percent_done": percentDone},
+	})
+	if err != nil {
+		return err
+	}
+	_, err = a.do(ctx, http.MethodPut, "/api/v2/tasks/bulk", vikunjabytes.NewReader(body), authorization)
+	return err
+}
+
+func (a *vikunjaHTTPClient) deleteTask(ctx vikunjacontext.Context, taskId int64, authorization string) error {
+	path := vikunjafmt.Sprintf("/api/v2/tasks/%d", taskId)
 	_, err := a.do(ctx, http.MethodDelete, path, nil, authorization)
 	return err
 }
 
-func (a *vikunjaHTTPClient) createTaskRelation(ctx vikunjacontext.Context, sourceID, targetID int64, authorization string) error {
+func (a *vikunjaHTTPClient) createTaskRelation(ctx vikunjacontext.Context, sourceId, targetId int64, authorization string) error {
 	body, err := vikunjajson.Marshal(map[string]interface{}{
-		"other_task_id": targetID,
+		"other_task_id": targetId,
 		"relation_kind": "blocking",
 	})
 	if err != nil {
 		return err
 	}
-	path := vikunjafmt.Sprintf("/api/v2/tasks/%d/relations", sourceID)
+	path := vikunjafmt.Sprintf("/api/v2/tasks/%d/relations", sourceId)
 	_, err = a.do(ctx, http.MethodPost, path, vikunjabytes.NewReader(body), authorization)
 	return err
 }
 
-func (a *vikunjaHTTPClient) deleteTaskRelation(ctx vikunjacontext.Context, sourceID, targetID int64, authorization string) error {
-	path := vikunjafmt.Sprintf("/api/v2/tasks/%d/relations/blocking/%d", sourceID, targetID)
+func (a *vikunjaHTTPClient) deleteTaskRelation(ctx vikunjacontext.Context, sourceId, targetId int64, authorization string) error {
+	path := vikunjafmt.Sprintf("/api/v2/tasks/%d/relations/blocking/%d", sourceId, targetId)
 	_, err := a.do(ctx, http.MethodDelete, path, nil, authorization)
 	return err
 }

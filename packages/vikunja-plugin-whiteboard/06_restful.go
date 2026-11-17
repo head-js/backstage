@@ -18,6 +18,7 @@ func (r *whiteboardRESTful) registerRoutes(g *restfulecho.Group) {
 	g.GET("/whiteboard/visit-edges", r.handleVisitEdges)
 	g.GET("/whiteboard/visit-nodes.read/:visitNodeId", r.handleReadVisitNode)
 	g.POST("/whiteboard/visit-nodes.create", r.handleCreateVisitNode)
+	g.PUT("/whiteboard/visit-nodes.update", r.handleUpdateVisitNode)
 	g.DELETE("/whiteboard/visit-nodes.delete/:id", r.handleDeleteVisitNode)
 	g.POST("/whiteboard/visit-edge.create", r.handleCreateVisitEdge)
 	g.POST("/whiteboard/visit-edges.delete", r.handleDeleteVisitEdge)
@@ -100,6 +101,24 @@ func (r *whiteboardRESTful) handleCreateVisitNode(c *restfulecho.Context) error 
 		return err
 	}
 	return c.JSON(restfulhttp.StatusCreated, visitNode)
+}
+
+func (r *whiteboardRESTful) handleUpdateVisitNode(c *restfulecho.Context) error {
+	var input VisitNodeUpdateRequest
+	if err := c.Bind(&input); err != nil {
+		return err
+	}
+	request := c.Request()
+	visitNode, err := updateVisitNode(
+		r.httpClient,
+		request.Context(),
+		input,
+		request.Header.Get("Authorization"),
+	)
+	if err != nil {
+		return err
+	}
+	return c.JSON(restfulhttp.StatusOK, visitNode)
 }
 
 func (r *whiteboardRESTful) handleWorkspaces(c *restfulecho.Context) error {
