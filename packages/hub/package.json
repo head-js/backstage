@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:frontend": "vite",
+    "build": "cd src-wails && go tool wails3 task package",
     "build:frontend": "vite build"
   },
   "author": "shuaizhexu@gmail.com",
   "license": "MIT",
   "dependencies": {
-    "@wailsio/runtime": "3.0.0-beta.32",
+    "@wailsio/runtime": "3.1.0",
     "react": "18.3.1",
     "react-dom": "18.3.1"
   },

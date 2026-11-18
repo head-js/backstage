@@ -27,7 +27,6 @@ func New(version string) *Server {
 	), func(context.Context, mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 		return mcp.NewToolResultText("pong"), nil
 	})
-
 	return &Server{
 		httpServer: mcpsdk.NewStreamableHTTPServer(server, mcpsdk.WithStateful(true)),
 	}

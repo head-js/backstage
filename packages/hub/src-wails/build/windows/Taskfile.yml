@@ -70,6 +70,11 @@ tasks:
       DOCKER_MOUNTS:
         sh: 'go tool wails3 tool docker-mounts'
 
+  package:
+    summary: Packages the application as a single executable
+    cmds:
+      - task: build
+
   generate:syso:
     summary: Generates Windows `.syso` file
     internal: true

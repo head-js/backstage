@@ -1,6 +1,23 @@
 version: '3'
 
 tasks:
+  generate:icons:
+    summary: Generates Windows `.ico` and Mac `.icns` from `appicon.png`
+    dir: build
+    sources:
+      - appicon.png
+    generates:
+      - darwin/icons.icns
+      - darwin/trayTemplateIcon.png
+      - windows/icon.ico
+      - windows/trayIcon.png
+      - windows/trayIconDark.png
+    cmds:
+      - go tool wails3 generate icons -input appicon.png -macfilename darwin/icons.icns -windowsfilename windows/icon.ico
+      - magick appicon.png -colorspace Gray -resize 36x36 -gravity center -background black -extent 44x44 -alpha on -channel A -fx "u.r" -channel RGB -fx "0" darwin/trayTemplateIcon.png
+      - magick appicon.png -colorspace Gray -resize 24x24 -gravity center -background black -extent 32x32 -alpha on -channel A -fx "u.r" -channel RGB -fx "0" windows/trayIcon.png
+      - magick appicon.png -colorspace Gray -resize 24x24 -gravity center -background black -extent 32x32 -alpha on -channel A -fx "u.r" -channel RGB -fx "1" windows/trayIconDark.png
+
   go:mod:tidy:
     summary: Runs `go mod tidy`
     internal: true

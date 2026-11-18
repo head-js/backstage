@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@wailsio/runtime':
-        specifier: 3.0.0-beta.32
-        version: 3.0.0-beta.32
+        specifier: 3.1.0
+        version: 3.1.0
       react:
         specifier: 18.3.1
         version: 18.3.1
@@ -451,8 +451,8 @@ packages:
     peerDependencies:
       vite: ^4.2.0 || ^5.0.0 || ^6.0.0 || ^7.0.0
 
-  '@wailsio/runtime@3.0.0-beta.32':
-    resolution: {integrity: sha512-lZgs1KgUSedSvPkGGEmjLwCkHwpEZKr3B9hr/ZL0sz5ipYM9kN8WpWPZOVLCFllrJhtmtNygR/h4VbmiELi4tQ==}
+  '@wailsio/runtime@3.1.0':
+    resolution: {integrity: sha512-noEAedvRyO8TLCrqhGwzrp+mbMxAIDa2rYmdJQOzvJV9MxgaZeXAJGNBiMiKMTSSy4ESOtQi4VH/5heSzi6ZmA==}
 
   baseline-browser-mapping@2.11.30:
     resolution: {integrity: sha512-YJs6Pz17RMNv8HoyKREtCY38E3BV1nPkWVmIb+XN1uHC1Vqt3KZCH/uJH9ZKRoiKb/icZ6tvehyee6RZNbFfRA==}
@@ -960,7 +960,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@wailsio/runtime@3.0.0-beta.32': {}
+  '@wailsio/runtime@3.1.0': {}
 
   baseline-browser-mapping@2.11.30: {}
 

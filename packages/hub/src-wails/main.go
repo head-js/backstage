@@ -49,7 +49,10 @@ func main() {
 }
 
 func run() error {
-	cfg := config.Load()
+	cfg, err := config.Load()
+	if err != nil {
+		return fmt.Errorf("load configuration: %w", err)
+	}
 
 	srv, err := server.Start(cfg)
 	if err != nil {
@@ -72,10 +75,10 @@ func run() error {
 			application.NewService(NewHubService(srv)),
 		},
 		Mac: application.MacOptions{
-			ApplicationShouldTerminateAfterLastWindowClosed: true,
+			ApplicationShouldTerminateAfterLastWindowClosed: false,
 		},
 		Windows: application.WindowsOptions{
-			DisableQuitOnLastWindowClosed: false,
+			DisableQuitOnLastWindowClosed: true,
 		},
 		OnShutdown: srv.Stop,
 	})
@@ -93,11 +96,13 @@ func run() error {
 	default:
 	}
 
-	app.Window.NewWithOptions(application.WebviewWindowOptions{
+	window := app.Window.NewWithOptions(application.WebviewWindowOptions{
 		Title:  "Backstage Hub",
 		Width:  720,
 		Height: 480,
 	})
+
+	setupTray(app, window)
 
 	runErr := app.Run()
 	if err := srv.Failure(); err != nil {

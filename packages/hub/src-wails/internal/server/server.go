@@ -15,6 +15,7 @@ import (
 	"github.com/danielgtaylor/huma/v2/adapters/humago"
 
 	"backstage.lisitede.com/hub/internal/config"
+	mcpwhiteboard "backstage.lisitede.com/hub/internal/mcp-whiteboard"
 	"backstage.lisitede.com/hub/internal/mcpserver"
 )
 
@@ -71,6 +72,7 @@ func newAPI(mux *http.ServeMux) huma.API {
 type Server struct {
 	httpServer      *http.Server
 	mcpServer       *mcpserver.Server
+	whiteboardMCP   *mcpwhiteboard.Server
 	listener        net.Listener
 	serveDone       chan struct{}
 	serveErr        error
@@ -84,7 +86,9 @@ func Start(cfg config.Config) (*Server, error) {
 	mux := http.NewServeMux()
 	newAPI(mux)
 	mcpServer := mcpserver.New(config.Version)
-	mux.Handle("/mcp", mcpServer.Handler())
+	whiteboardMCP := mcpwhiteboard.New(config.Version, cfg.VikunjaURL, cfg.VikunjaToken)
+	mux.Handle("/mcp-other", mcpServer.Handler())
+	mux.Handle("/mcp-whiteboard", whiteboardMCP.Handler())
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)))
 	if err != nil {
@@ -92,6 +96,9 @@ func Start(cfg config.Config) (*Server, error) {
 		defer cancel()
 		if shutdownErr := mcpServer.Shutdown(ctx); shutdownErr != nil {
 			log.Printf("backstage-hub MCP cleanup after listen failure: %v", shutdownErr)
+		}
+		if shutdownErr := whiteboardMCP.Shutdown(ctx); shutdownErr != nil {
+			log.Printf("backstage-hub Whiteboard MCP cleanup after listen failure: %v", shutdownErr)
 		}
 		return nil, fmt.Errorf("listen: %w", err)
 	}
@@ -103,6 +110,7 @@ func Start(cfg config.Config) (*Server, error) {
 			IdleTimeout:       60 * time.Second,
 		},
 		mcpServer:       mcpServer,
+		whiteboardMCP:   whiteboardMCP,
 		listener:        listener,
 		serveDone:       make(chan struct{}),
 		errCh:           make(chan error, 1),
@@ -161,6 +169,9 @@ func (s *Server) shutdown() {
 	mcpCtx, mcpCancel := context.WithTimeout(context.Background(), s.shutdownTimeout)
 	if err := s.mcpServer.Shutdown(mcpCtx); err != nil {
 		log.Printf("backstage-hub MCP shutdown: %v", err)
+	}
+	if err := s.whiteboardMCP.Shutdown(mcpCtx); err != nil {
+		log.Printf("backstage-hub Whiteboard MCP shutdown: %v", err)
 	}
 	mcpCancel()
 
