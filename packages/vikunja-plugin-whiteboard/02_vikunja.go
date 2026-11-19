@@ -13,6 +13,7 @@ import (
 	vikunjaio "io"
 	http "net/http"
 	vikunjaurl "net/url"
+	vikunjasort "sort"
 	vikunjastrings "strings"
 
 	"code.vikunja.io/api/pkg/config"
@@ -123,15 +124,20 @@ func (a *vikunjaHTTPClient) createTask(ctx vikunjacontext.Context, projectId int
 	return a.do(ctx, http.MethodPost, path, vikunjabytes.NewReader(body), authorization)
 }
 
-// updateTaskPercentDone writes only percent_done through the v2 bulk endpoint.
+// updateTaskFields writes only the supplied fields through the v2 bulk endpoint.
 // The single-task update (POST /tasks/{id}) rewrites every column, so it would
 // blank fields this plugin does not manage; the bulk endpoint with an explicit
 // fields list is the true partial update.
-func (a *vikunjaHTTPClient) updateTaskPercentDone(ctx vikunjacontext.Context, taskId int64, percentDone float64, authorization string) error {
+func (a *vikunjaHTTPClient) updateTaskFields(ctx vikunjacontext.Context, taskId int64, values map[string]interface{}, authorization string) error {
+	fields := make([]string, 0, len(values))
+	for field := range values {
+		fields = append(fields, field)
+	}
+	vikunjasort.Strings(fields)
 	body, err := vikunjajson.Marshal(map[string]interface{}{
 		"task_ids": []int64{taskId},
-		"fields":   []string{"percent_done"},
-		"values":   map[string]float64{"percent_done": percentDone},
+		"fields":   fields,
+		"values":   values,
 	})
 	if err != nil {
 		return err
