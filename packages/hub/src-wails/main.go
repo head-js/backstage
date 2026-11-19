@@ -11,6 +11,7 @@ import (
 
 	"backstage.lisitede.com/hub/internal/config"
 	"backstage.lisitede.com/hub/internal/server"
+	"backstage.lisitede.com/hub/internal/vault"
 )
 
 //go:embed all:frontend/dist
@@ -41,6 +42,26 @@ func (h *HubService) GetStatus() Status {
 	}
 }
 
+type VaultService struct {
+	store *vault.Store
+}
+
+func NewVaultService(store *vault.Store) *VaultService {
+	return &VaultService{store: store}
+}
+
+func (v *VaultService) AddSecret() string {
+	return v.store.AddSecret()
+}
+
+func (v *VaultService) RemoveKey(secret string) {
+	v.store.RemoveKey(secret)
+}
+
+func (v *VaultService) ListRecords() []vault.Record {
+	return v.store.All()
+}
+
 func main() {
 	if err := run(); err != nil {
 		log.Printf("error: %v", err)
@@ -54,7 +75,8 @@ func run() error {
 		return fmt.Errorf("load configuration: %w", err)
 	}
 
-	srv, err := server.Start(cfg)
+	vaultStore := vault.New()
+	srv, err := server.Start(cfg, vaultStore)
 	if err != nil {
 		return fmt.Errorf("start http server: %w", err)
 	}
@@ -73,6 +95,7 @@ func run() error {
 		},
 		Services: []application.Service{
 			application.NewService(NewHubService(srv)),
+			application.NewService(NewVaultService(vaultStore)),
 		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: false,

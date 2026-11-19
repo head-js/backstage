@@ -17,13 +17,8 @@ import (
 	"backstage.lisitede.com/hub/internal/config"
 	mcpwhiteboard "backstage.lisitede.com/hub/internal/mcp-whiteboard"
 	"backstage.lisitede.com/hub/internal/mcpserver"
+	"backstage.lisitede.com/hub/internal/vault"
 )
-
-type PingResponse struct {
-	Body struct {
-		Message string `json:"message"`
-	}
-}
 
 type VersionResponse struct {
 	Body struct {
@@ -40,18 +35,6 @@ func newAPI(mux *http.ServeMux) huma.API {
 	humaConfig.CreateHooks = nil
 
 	api := humago.New(mux, humaConfig)
-
-	huma.Register(api, huma.Operation{
-		OperationID: "ping",
-		Summary:     "Ping the hub",
-		Method:      http.MethodGet,
-		Path:        "/api/ping",
-		Tags:        []string{"system"},
-	}, func(ctx context.Context, input *struct{}) (*PingResponse, error) {
-		resp := PingResponse{}
-		resp.Body.Message = "pong"
-		return &resp, nil
-	})
 
 	huma.Register(api, huma.Operation{
 		OperationID: "version",
@@ -82,13 +65,14 @@ type Server struct {
 	stopDone        chan struct{}
 }
 
-func Start(cfg config.Config) (*Server, error) {
+func Start(cfg config.Config, vaultStore *vault.Store) (*Server, error) {
 	mux := http.NewServeMux()
 	newAPI(mux)
 	mcpServer := mcpserver.New(config.Version)
 	whiteboardMCP := mcpwhiteboard.New(config.Version, cfg.VikunjaURL, cfg.VikunjaToken)
 	mux.Handle("/mcp-other", mcpServer.Handler())
 	mux.Handle("/mcp-whiteboard", whiteboardMCP.Handler())
+	mux.Handle("GET /vault-api/get", vault.NewHandler(vaultStore))
 
 	listener, err := net.Listen("tcp", net.JoinHostPort(cfg.Host, strconv.Itoa(cfg.Port)))
 	if err != nil {
