@@ -191,10 +191,8 @@ func createVisitNode(
 	return taskToVisitNode(*project, task, extIid, input.Session)
 }
 
-// updateVisitNode applies only the fields the caller sent (non-nil pointers)
-// and returns the re-read node. Progress is a percentage integer (0-100);
-// Session accepts any string, including "" to clear. Fields absent from the
-// request are left untouched, so callers can update one field at a time.
+// updateVisitNode stores the color for the required Type and re-reads the node.
+// Progress (0-100) and Session (including "" to clear) are optional.
 func updateVisitNode(
 	client *vikunjaHTTPClient,
 	ctx servicecontext.Context,
@@ -205,11 +203,16 @@ func updateVisitNode(
 	if input.Id == "" {
 		return nil, serviceecho.NewHTTPError(400, "Id is required")
 	}
-	if input.Progress == nil && input.Session == nil {
-		return nil, serviceecho.NewHTTPError(400, "at least one of Progress or Session is required")
+	color, err := visitNodeTypeToColor(input.Type)
+	if err != nil {
+		return nil, serviceecho.NewHTTPError(400, err.Error())
 	}
 	if input.Progress != nil && (*input.Progress < 0 || *input.Progress > 100) {
 		return nil, serviceecho.NewHTTPError(400, "Progress must be a percentage integer between 0 and 100")
+	}
+	values := map[string]interface{}{"hex_color": color}
+	if input.Progress != nil {
+		values["percent_done"] = float64(*input.Progress) / 100
 	}
 	taskId, _, found, err := findTaskExtByIid(input.Id)
 	if err != nil {
@@ -218,10 +221,8 @@ func updateVisitNode(
 	if !found {
 		return nil, serviceecho.NewHTTPError(404, servicefmt.Sprintf("visit node %q not found", input.Id))
 	}
-	if input.Progress != nil {
-		if err := client.updateTaskPercentDone(ctx, taskId, float64(*input.Progress)/100, authorization); err != nil {
-			return nil, err
-		}
+	if err := client.updateTaskFields(ctx, taskId, values, authorization); err != nil {
+		return nil, err
 	}
 	if input.Session != nil {
 		if err := setTaskExtSession(taskId, *input.Session); err != nil {

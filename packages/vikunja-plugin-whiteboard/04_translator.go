@@ -13,6 +13,30 @@ import (
 const taskDescriptionSeparator = "* * *"
 const workspacePriorityBase = 200 * 65536
 
+const (
+	visitNodeTaskColor   = "FFFFFF"
+	visitNodeVisionColor = "FFFCC8"
+)
+
+func visitNodeTypeFromColor(color string) VisitNodeType {
+	color = translatorstrings.ToUpper(translatorstrings.TrimPrefix(color, "#"))
+	if color == visitNodeVisionColor {
+		return VisitNodeTypeVision
+	}
+	return VisitNodeTypeTask
+}
+
+func visitNodeTypeToColor(nodeType VisitNodeType) (string, error) {
+	switch nodeType {
+	case VisitNodeTypeTask:
+		return visitNodeTaskColor, nil
+	case VisitNodeTypeVision:
+		return visitNodeVisionColor, nil
+	default:
+		return "", translatorerrors.New("Type must be Task or Vision")
+	}
+}
+
 func projectToWorkspace(project VikunjaProject) Workspace {
 	return Workspace{
 		Id:          project.Id,
@@ -41,6 +65,7 @@ func taskToVisitNode(project VikunjaProject, task VikunjaTask, extIid, extSessio
 func visitNodeFromDescription(project VikunjaProject, task VikunjaTask, description map[string][]string, extIid, extSession string) *VisitNode {
 	return &VisitNode{
 		Id:          extIid,
+		Type:        visitNodeTypeFromColor(task.HexColor),
 		Workspace:   project.Title,
 		Session:     extSession,
 		Title:       task.Title,

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,6 +21,7 @@ type Server struct {
 
 type visitNode struct {
 	Id          string              `json:"Id" jsonschema_description:"节点 Id，格式为 大写(Workspace.Name)-任务Index，如 AMURO-1；稳定标识，Workspace 改名后不变"`
+	Type        string              `json:"Type" jsonschema:"enum=Task,enum=Vision" jsonschema_description:"节点类型，始终为 Task 或 Vision。"`
 	Workspace   string              `json:"Workspace" jsonschema_description:"所属工作区的实际名称，保留大小写"`
 	Session     string              `json:"Session" jsonschema_description:"节点所属会话，单个字符串；未经 whiteboard_update_visit_node 设置时为空字符串"`
 	Title       string              `json:"Title" jsonschema_description:"纯文本标题；不做 Markdown 转义，创建时去除首尾空白"`
@@ -39,9 +41,9 @@ type visitNodeCreateInput struct {
 	Description map[string][]string `json:"Description,omitempty"`
 }
 
-// visitNodeUpdateInput 的指针字段区分「未传」与「显式零值」：nil 表示不更新该字段。
 type visitNodeUpdateInput struct {
 	Id       string  `json:"Id"`
+	Type     string  `json:"Type"`
 	Progress *int64  `json:"Progress,omitempty"`
 	Session  *string `json:"Session,omitempty"`
 }
@@ -108,6 +110,13 @@ func New(version, vikunjaURL, vikunjaToken string) *Server {
 		}
 		defer response.Body.Close()
 		if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				return fmt.Errorf("whiteboard service returned %s: failed to read error response: %w", response.Status, err)
+			}
+			if detail := strings.TrimSpace(string(body)); detail != "" {
+				return fmt.Errorf("whiteboard service returned %s: %s", response.Status, detail)
+			}
 			return fmt.Errorf("whiteboard service returned %s", response.Status)
 		}
 		if output != nil && response.StatusCode != http.StatusNoContent {
@@ -159,8 +168,8 @@ func New(version, vikunjaURL, vikunjaToken string) *Server {
 
 	server.AddTool(mcp.NewTool(
 		"whiteboard_update_visit_node",
-		mcp.WithDescription("仅在处理 Whiteboard 相关问题时调用。更新节点的 Progress 和/或 Session：仅更新传入的字段，未传的字段保持不变，两者至少传入一个。Progress 是百分制整数（0-100，如 75 表示 75%）；Session 是单个字符串，传空字符串表示清空。"),
-		mcp.WithRawInputSchema(json.RawMessage(`{"type":"object","properties":{"Id":{"type":"string","description":"要更新的节点 Id"},"Progress":{"type":"integer","description":"百分制整数，0-100；如 75 表示 75%；不传则不修改","minimum":0,"maximum":100},"Session":{"type":"string","description":"节点所属会话，单个字符串；传空字符串表示清空；不传则不修改"}},"required":["Id"],"additionalProperties":false}`)),
+		mcp.WithDescription("仅在处理 Whiteboard 相关问题时调用。更新节点时必须提供 Type，取值为 Task 或 Vision；保持类型不变时也必须显式传入当前 Type。Progress 和 Session 可选。Progress 为 0 到 100 的整数，例如 75 表示 75%。要清空 Session，请传空字符串。"),
+		mcp.WithRawInputSchema(json.RawMessage(`{"type":"object","properties":{"Id":{"type":"string","description":"要更新的节点 Id"},"Type":{"type":"string","enum":["Task","Vision"],"description":"必填，要写入的节点类型；保持类型不变时也必须显式传入当前值"},"Progress":{"type":"integer","description":"0 到 100 的整数，例如 75 表示 75%。省略时保留原进度。","minimum":0,"maximum":100},"Session":{"type":"string","description":"节点所属会话。空字符串表示清空，省略时保留原会话。"}},"required":["Id","Type"],"additionalProperties":false}`)),
 		mcp.WithOutputSchema[visitNode](),
 		mcp.WithReadOnlyHintAnnotation(false),
 		mcp.WithDestructiveHintAnnotation(false),
@@ -170,8 +179,8 @@ func New(version, vikunjaURL, vikunjaToken string) *Server {
 		if err := call.BindArguments(&input); err != nil || strings.TrimSpace(input.Id) == "" {
 			return nil, fmt.Errorf("invalid visit node update input")
 		}
-		if input.Progress == nil && input.Session == nil {
-			return nil, fmt.Errorf("at least one of Progress or Session is required")
+		if input.Type != "Task" && input.Type != "Vision" {
+			return nil, fmt.Errorf("Type must be Task or Vision")
 		}
 		if input.Progress != nil && (*input.Progress < 0 || *input.Progress > 100) {
 			return nil, fmt.Errorf("Progress must be a percentage integer between 0 and 100")

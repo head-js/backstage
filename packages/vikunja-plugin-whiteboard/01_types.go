@@ -2,6 +2,13 @@
 
 package main
 
+type VisitNodeType string
+
+const (
+	VisitNodeTypeTask   VisitNodeType = "Task"
+	VisitNodeTypeVision VisitNodeType = "Vision"
+)
+
 type Workspace struct {
 	Id          int64   `json:"Id"`
 	Name        string  `json:"Name"`
@@ -27,6 +34,7 @@ type VikunjaTask struct {
 	Title        string               `json:"title"`
 	Description  string               `json:"description"`
 	PercentDone  float64              `json:"percent_done"`
+	HexColor     string               `json:"hex_color"`
 	RelatedTasks VikunjaTaskRelations `json:"related_tasks"`
 }
 
@@ -52,6 +60,7 @@ type VikunjaTaskList struct {
 
 type VisitNode struct {
 	Id          string              `json:"Id"`
+	Type        VisitNodeType       `json:"Type"`
 	Workspace   string              `json:"Workspace"`
 	Session     string              `json:"Session"`
 	Title       string              `json:"Title"`
@@ -66,12 +75,10 @@ type VisitNodeCreateRequest struct {
 	Description map[string][]string `json:"Description"`
 }
 
-// VisitNodeUpdateRequest carries optional fields. A nil pointer means the
-// caller did not send the field and it must not be touched; a non-nil zero
-// value (Progress 0, Session "") is an explicit update. Progress is a
-// percentage integer (0-100).
+// Type is required. Progress 0 and Session "" are explicit updates.
 type VisitNodeUpdateRequest struct {
-	Id       string  `json:"Id"`
-	Progress *int64  `json:"Progress"`
-	Session  *string `json:"Session"`
+	Id       string        `json:"Id"`
+	Type     VisitNodeType `json:"Type"`
+	Progress *int64        `json:"Progress"`
+	Session  *string       `json:"Session"`
 }
